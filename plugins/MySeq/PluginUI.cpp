@@ -82,6 +82,7 @@ START_NAMESPACE_DISTRHO
             ImGui::SetNextWindowSize(ImVec2(getWidth(), getHeight()));
             int window_flags = ImGuiWindowFlags_NoDecoration;
             float cell_padding = 4.0;
+            bool dirty = false;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             auto &p = state.get_selected_pattern();
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
@@ -113,6 +114,7 @@ START_NAMESPACE_DISTRHO
                         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                             if (valid_cell) {
                                 p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
+                                dirty = true;
                             }
                         } else {
                             interaction = Interaction::None;
@@ -126,6 +128,7 @@ START_NAMESPACE_DISTRHO
                                 auto new_vel = (uint8_t) clamp(
                                         (int) std::round((float) drag_started_velocity - (float) delta_y), 1, 127);
                                 p.set_velocity(drag_started_cell, new_vel);
+                                dirty = true;
                             }
                         } else {
                             interaction = Interaction::None;
@@ -144,6 +147,7 @@ START_NAMESPACE_DISTRHO
                                     interaction = Interaction::DrawingCells;
                                     drag_started_velocity = p.get_velocity(cell);
                                     p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
+                                    dirty = true;
                                 }
                             }
                         }
@@ -176,6 +180,12 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
             }
             ImGui::End();
+            if (dirty) {
+                auto tmp = state.to_json_string();
+                state = myseq::State::from_json_string(tmp.c_str());
+                d_debug("%s", state.to_json_string().c_str());
+            }
+
         }
 
         void stateChanged(const char *key, const char *value) override {
