@@ -1,6 +1,6 @@
 
-#ifndef AUDIO_SAMPLER_DPF_NOTES_HPP
-#define AUDIO_SAMPLER_DPF_NOTES_HPP
+#ifndef AUDIO_SAMPLER_DPF_NUMBERS_HPP
+#define AUDIO_SAMPLER_DPF_NUMBERS_HPP
 
 static const char *ONE_TO_256[] = {
         "1",
@@ -261,5 +261,5 @@ static const char *ONE_TO_256[] = {
         "256",
         nullptr};
 
-#endif // AUDIO_SAMPLER_DPF_NOTES_HPP
+#endif // AUDIO_SAMPLER_DPF_NUMBERS_HPP
 

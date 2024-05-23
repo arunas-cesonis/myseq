@@ -14,7 +14,6 @@
 #include <optional>
 #include "src/DistrhoDefines.h"
 
-#include "rapidjson/document.h"
 #include "optional.hpp"
 #include "TimePositionCalc.hpp"
 
@@ -115,10 +114,6 @@ namespace myseq {
         uint8_t get_velocity(const V2i &v) const {
             return data[v.y * width + v.x].velocity;
         }
-
-        static Pattern from_json(const rapidjson::Value &value);
-
-        [[nodiscard]] rapidjson::Document to_json() const;
     };
 
     struct State {
@@ -157,9 +152,6 @@ namespace myseq {
         }
 
         static State from_json_string(const char *s);
-
-
-        [[nodiscard]] rapidjson::Document to_json() const;
 
         [[nodiscard]] std::string to_json_string() const;
     };

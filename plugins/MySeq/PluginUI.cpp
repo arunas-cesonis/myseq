@@ -9,6 +9,7 @@
 #include "DistrhoUI.hpp"
 #include "Patterns.hpp"
 #include "Numbers.hpp"
+#include "Notes.hpp"
 
 START_NAMESPACE_DISTRHO
 
@@ -114,6 +115,7 @@ START_NAMESPACE_DISTRHO
                 auto *draw_list = ImGui::GetWindowDrawList();
                 auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
                 auto ctrl_held = ImGui::GetIO().KeyCtrl;
+                auto alt_held = ImGui::GetIO().KeyAlt;
                 switch (interaction) {
                     case Interaction::DrawingCells: {
                         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
@@ -171,7 +173,11 @@ START_NAMESPACE_DISTRHO
                         //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
                         draw_list->AddRectFilled(p_min, p_max, cell_color);
                         draw_list->AddRect(p_min, p_max, border_color);
-                        if (vel > 0) {
+
+                        if (alt_held && loop_cell.x == 0) {
+                            auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
+                            draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
+                        } else if (vel > 0) {
                             draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
                         }
                     }
@@ -189,6 +195,10 @@ START_NAMESPACE_DISTRHO
                 publish();
             }
 
+        }
+
+        void idleCallback() override {
+            repaint();
         }
 
         void stateChanged(const char *key, const char *value) override {
