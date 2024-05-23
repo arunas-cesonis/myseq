@@ -55,6 +55,11 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        void publish() {
+            d_debug("PluginUI: publish");
+            setState("pattern", state.to_json_string().c_str());
+        }
+
 
     protected:
         static const char *interaction_to_string(Interaction i) {
@@ -181,15 +186,16 @@ START_NAMESPACE_DISTRHO
             }
             ImGui::End();
             if (dirty) {
-                auto tmp = state.to_json_string();
-                state = myseq::State::from_json_string(tmp.c_str());
-                d_debug("%s", state.to_json_string().c_str());
+                publish();
             }
 
         }
 
         void stateChanged(const char *key, const char *value) override {
-
+            d_debug("PluginUI: stateChanged value=[%s]\n", value ? value : "null");
+            if (std::strcmp(key, "pattern") == 0) {
+                state = myseq::State::from_json_string(value);
+            }
         }
         // ----------------------------------------------------------------------------------------------------------------
 

@@ -11,10 +11,12 @@ NAME = MySeq
 # Files to build
 
 FILES_DSP = \
-	PluginDSP.cpp
+	PluginDSP.cpp \
+	Patterns.cpp
 
 FILES_UI = \
 	PluginUI.cpp \
+	Patterns.cpp \
 	../../dpf-widgets/opengl/DearImGui.cpp
 
 # --------------------------------------------------------------
@@ -22,7 +24,7 @@ FILES_UI = \
 
 include ../../dpf/Makefile.plugins.mk
 
-BUILD_CXX_FLAGS += -I../../dpf-widgets/opengl
+BUILD_CXX_FLAGS += -I../../dpf-widgets/opengl -std=gnu++17
 
 # --------------------------------------------------------------
 # Enable all possible plugin types

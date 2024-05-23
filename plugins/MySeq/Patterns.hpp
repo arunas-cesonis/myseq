@@ -5,15 +5,27 @@
 #ifndef MY_PLUGINS_PATTERNS_HPP
 #define MY_PLUGINS_PATTERNS_HPP
 
-#include <valarray>
-#include <optional>
 #include <map>
+#include <valarray>
+#include <sstream>
+#include <iostream>
+#include <cassert>
+
+#include <optional>
+#include "src/DistrhoDefines.h"
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
+#include "optional.hpp"
+#include "TimePositionCalc.hpp"
 
 namespace myseq {
+
+    namespace utils {
+        static uint8_t row_index_to_midi_note(std::size_t row) {
+            assert(row >= 0 && row <= 127);
+            return row;
+        }
+    }
 
     struct V2i {
         int x;
@@ -30,6 +42,45 @@ namespace myseq {
 
     struct Cell {
         uint8_t velocity;
+    };
+
+    struct Note {
+        uint8_t note;
+        uint8_t channel;
+
+        bool operator<(const Note &other) const {
+            if (channel < other.channel) {
+                return true;
+            } else if (channel > other.channel) {
+                return false;
+            } else {
+                return note < other.note;
+            }
+        }
+    };
+
+
+    struct NoteMessage {
+        enum class Type {
+            NoteOn,
+            NoteOff,
+        };
+        Type type;
+        Note note;
+        uint8_t velocity;
+
+        [[nodiscard]] static std::optional<NoteMessage> parse(const uint8_t (&data)[4]) {
+            const auto msg_type = static_cast<uint8_t>(data[0] & 0xf0);
+            const auto channel = static_cast<uint8_t >(data[0] & 0x0f);
+            if (msg_type == 0x90 || msg_type == 0x80) {
+                const auto note_num = data[1];
+                const auto velocity = data[2];
+                const auto note = Note{note_num, channel};
+                return std::optional<NoteMessage>(
+                        {msg_type == 0x90 && velocity > 0 ? Type::NoteOn : Type::NoteOff, note, velocity});
+            }
+            return {};
+        }
     };
 
     struct Pattern {
@@ -49,45 +100,25 @@ namespace myseq {
             data[v.y * width + v.x].velocity = velocity;
         }
 
+        void set_on(const V2i &v) {
+            data[v.y * width + v.x].velocity = 127;
+        }
+
+        void set_off(const V2i &v) {
+            data[v.y * width + v.x].velocity = 0;
+        }
+
+        bool is_on(const V2i &v) const {
+            return data[v.y * width + v.x].velocity > 0;
+        }
+
         uint8_t get_velocity(const V2i &v) const {
             return data[v.y * width + v.x].velocity;
         }
 
+        static Pattern from_json(const rapidjson::Value &value);
 
-        static Pattern from_json(const rapidjson::Value &value) {
-            auto width = value["width"].GetInt();
-            auto height = value["height"].GetInt();
-            auto carr = value["data"].GetArray();
-            Pattern p(width, height);
-            for (int i = 0; i < carr.Size(); i++) {
-                auto cobj = carr[i].GetObject();
-                std::size_t cell_index = cobj["i"].GetInt();
-                auto velocity = static_cast<uint8_t>(cobj["v"].GetInt());
-                p.data[cell_index].velocity = velocity;
-
-            }
-            return p;
-        }
-
-        [[nodiscard]] rapidjson::Document to_json() const {
-            rapidjson::Document d;
-            d.SetObject();
-            d.GetObject().AddMember("width", width, d.GetAllocator());
-            d.GetObject().AddMember("height", height, d.GetAllocator());
-            //d.GetObject().AddMember("data", height, d.GetAllocator());
-            rapidjson::Value data_arr(rapidjson::kArrayType);
-            for (int i = 0; i < data.size(); i++) {
-                const auto &cell = data[i];
-                if (cell.velocity > 0) {
-                    rapidjson::Value o(rapidjson::kObjectType);
-                    o.GetObject().AddMember("i", (int) i, d.GetAllocator());
-                    o.GetObject().AddMember("v", (int) cell.velocity, d.GetAllocator());
-                    data_arr.PushBack(o, d.GetAllocator());
-                }
-            }
-            d.GetObject().AddMember("data", data_arr, d.GetAllocator());
-            return d;
-        }
+        [[nodiscard]] rapidjson::Document to_json() const;
     };
 
     struct State {
@@ -121,42 +152,16 @@ namespace myseq {
             return patterns.find(id)->second;
         }
 
-        static State from_json_string(const char *s) {
-            rapidjson::Document d;
-            d.Parse(s);
-            auto arr = d["patterns"].GetArray();
-            auto selected = d["selected"].GetInt();
-            State state;
-            for (rapidjson::SizeType i = 0; i < arr.Size(); i++) {
-                auto obj = arr[i].GetObject();
-                int index = obj["i"].GetInt();
-                auto pobj = obj["pattern"].GetObject();
-                state.patterns[index] = Pattern::from_json(pobj);
-            }
-            return state;
+        const Pattern &get_pattern(int id) const {
+            return patterns.find(id)->second;
         }
 
-        [[nodiscard]] rapidjson::Document to_json() const {
-            rapidjson::Document d;
-            d.SetObject();
-            d.GetObject().AddMember("selected", selected, d.GetAllocator());
-            rapidjson::Value patterns_arr(rapidjson::kArrayType);
-            for (auto &kv: patterns) {
-                rapidjson::Value o(rapidjson::kObjectType);
-                o.GetObject().AddMember("i", (int) kv.first, d.GetAllocator());
-                o.GetObject().AddMember("pattern", kv.second.to_json(), d.GetAllocator());
-                patterns_arr.PushBack(o, d.GetAllocator());
-            }
-            d.GetObject().AddMember("patterns", patterns_arr, d.GetAllocator());
-            return d;
-        }
+        static State from_json_string(const char *s);
 
-        [[nodiscard]] std::string to_json_string() const {
-            rapidjson::StringBuffer buffer;
-            rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-            to_json().Accept(writer);
-            return buffer.GetString();
-        }
+
+        [[nodiscard]] rapidjson::Document to_json() const;
+
+        [[nodiscard]] std::string to_json_string() const;
     };
 }
 
