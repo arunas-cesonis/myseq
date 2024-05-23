@@ -29,6 +29,9 @@ START_NAMESPACE_DISTRHO
         V2i drag_started_cell;
         ImVec2 drag_started_mpos;
         ImVec2 offset;
+        int pattern_width_slider_value;
+        static constexpr int visible_rows = 16;
+
 
         enum class Interaction {
             None,
@@ -62,7 +65,9 @@ START_NAMESPACE_DISTRHO
         void publish() {
             auto s = state.to_json_string();
             setState("pattern", s.c_str());
+#ifdef DEBUG
             state = myseq::State::from_json_string(s.c_str());
+#endif
         }
 
 
@@ -95,12 +100,20 @@ START_NAMESPACE_DISTRHO
             bool dirty = false;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             auto &p = state.get_selected_pattern();
+
+            pattern_width_slider_value = p.width;
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
+                ImGui::Text("a");
+                ImGui::Text("a");
+                ImGui::Text("a");
+                ImGui::Text("a");
+                ImGui::Text("a");
+
 
                 auto grid_size = ImVec2(400, 300);
 
                 auto avail = ImGui::GetContentRegionAvail();
-                float width = avail.x;
+                float width = avail.x * 0.5;
 
                 float cell_width = width / (float) p.width;
                 float cell_height = cell_width;
@@ -111,9 +124,9 @@ START_NAMESPACE_DISTRHO
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
                 auto cpos = ImGui::GetCursorPos();
                 auto mpos = ImGui::GetMousePos();
-                auto mrow = (int) (std::floor((mpos.y - cpos.y) / cell_height));
-                auto height = cell_height * (float) p.height;
-                auto mcol = (int) (std::floor((mpos.x - cpos.x) / cell_width));
+                auto mrow = (int) (std::floor((mpos.y - cpos.y - offset.y) / cell_height));
+                auto height = cell_height * (float) visible_rows;
+                auto mcol = (int) (std::floor((mpos.x - cpos.x - offset.x) / cell_width));
                 mrow = mrow >= p.height ? -1 : mrow;
                 mcol = mcol >= p.width ? -1 : mcol;
                 auto cell = V2i(mcol, mrow);
@@ -167,13 +180,22 @@ START_NAMESPACE_DISTRHO
                         }
                 }
 
-                for (auto i = 0; i < p.height; i++) {
-                    for (auto j = 0; j < p.width; j++) {
+                const auto corner = (ImVec2(0.0, 0.0) - offset) / ImVec2(cell_width, cell_height);
+                const auto corner2 = corner + ImVec2(width, height) / ImVec2(cell_width, cell_height);
+                const auto first_visible_row = (int) std::floor(corner.y);
+                const auto last_visible_row = std::min(p.height - 1, (int) std::floor(corner2.y));
+                const auto first_visible_col = std::max(0, (int) std::floor(corner.x));
+                const auto last_visible_col = std::min(p.width - 1, (int) std::floor(corner2.x));
+
+                draw_list->PushClipRect(cpos, cpos + ImVec2(width, height), true);
+
+                for (auto i = first_visible_row; i <= last_visible_row; i++) {
+                    for (auto j = first_visible_col; j <= last_visible_col; j++) {
                         auto loop_cell = V2i(j, i);
-                        auto is_hovered = loop_cell == cell;
-                        auto index = i * p.width + j;
-                        auto active = p.get_velocity(loop_cell) > 0;
-                        auto p_min = ImVec2(cell_width * (float) j, cell_height * (float) i) + cell_padding_xy + cpos +
+                        auto p_min = ImVec2(cell_width * (float) loop_cell.x,
+//                                            cell_height * (float) (p.height - loop_cell.y - 1)) +
+                                            cell_height * (float) loop_cell.y)
+                                     + cell_padding_xy + cpos +
                                      offset;
                         auto p_max = p_min + ImVec2(cell_width, cell_height) - cell_padding_xy;
                         auto vel = p.get_velocity(loop_cell);
@@ -188,34 +210,54 @@ START_NAMESPACE_DISTRHO
                             draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
                         } else if (vel > 0) {
                             draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
+                        } else {
+//                            std::ostringstream os;
+//                            os << loop_cell.x << ' ' << loop_cell.y;
+//                            draw_list->AddText(p_min, IM_COL32_WHITE, os.str().c_str());
                         }
                     }
                     /// void ImDrawList::AddRect(const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness)
                 }
+                draw_list->PopClipRect();
+
+                draw_list->AddRect(cpos, cpos + ImVec2(width, height), IM_COL32_WHITE);
 
                 //ImGui::PushID(777);
+                // ImGui::InvisibleButton("##the_grid", ImVec2(width, height), ImGuiButtonFlags_None);
                 ImGui::Dummy(ImVec2(width, height));
-                //ImGui::InvisibleButton("##the_grid", ImVec2(width, height), ImGuiButtonFlags_None);
                 if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
                     offset += ImGui::GetIO().MouseDelta;
                 }
+                if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
+                                     ImGuiSliderFlags_None)) {
+                    p.resize_width(pattern_width_slider_value);
+                    dirty = true;
+                }
+
                 //ImGui::PopID();
 
                 ImGui::Text("%d %d", mrow, mcol);
-                ImGui::Text("IsItemActive() %d IsMouseDragging(ImGuiMouseButton_Right() %d", ImGui::IsItemActive(),
-                            ImGui::IsMouseDragging(ImGuiMouseButton_Right));
+                ImGui::Text("ImGui::IsMouseDown(ImGuiMouseButton_Left)=%d", ImGui::IsMouseDown(ImGuiMouseButton_Left));
+                ImGui::Text("ImGui::IsMouseDown(ImGuiMouseButton_Right)=%d",
+                            ImGui::IsMouseDown(ImGuiMouseButton_Right));
                 ImGui::Text("drag_started_velocity=%d", drag_started_velocity);
+                ImGui::Text("first_visible_col=%d", first_visible_col);
+                ImGui::Text("last_visible_col=%d", last_visible_col);
+                ImGui::Text("first_visible_row=%d", first_visible_row);
+                ImGui::Text("last_visible_row=%d", last_visible_row);
+                ImGui::Text("corner=%f %f", corner.x, corner.y);
                 ImGui::Text("valid_cell=%d", valid_cell);
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
             }
+
 
             if (ImGui::Button("Add pattern")) {
                 int id = state.next_unused_id(state.selected);
                 state.create_pattern(id);
                 state.selected = id;
                 dirty = true;
-                ImGui::Text("%d", ImGui::IsItemActive());
             }
+
             if (ImGui::BeginListBox("##patterns")) {
                 state.each_pattern_id([&](int id) {
                     if (ImGui::Selectable(std::to_string(id).c_str(), id == state.selected, ImGuiSelectableFlags_None,
@@ -225,6 +267,7 @@ START_NAMESPACE_DISTRHO
                 });
                 ImGui::EndListBox();
             }
+
             ImGui::End();
             if (dirty) {
                 publish();

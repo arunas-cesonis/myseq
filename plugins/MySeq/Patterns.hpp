@@ -89,7 +89,7 @@ namespace myseq {
         int width;
         int height;
 
-        Pattern() : width(32), height(16) {
+        Pattern() : width(16), height(128) {
             data.resize(width * height);
         }
 
@@ -97,24 +97,37 @@ namespace myseq {
             data.resize(width * height);
         }
 
+        Cell &get_cell(const V2i &v) {
+            return data[v.x * height + v.y];
+        }
+
+        const Cell &get_cell(const V2i &v) const {
+            return data[v.x * height + v.y];
+        }
+
         void set_velocity(const V2i &v, uint8_t velocity) {
-            data[v.y * width + v.x].velocity = velocity;
+            get_cell(v).velocity = velocity;
         }
 
         void set_on(const V2i &v) {
-            data[v.y * width + v.x].velocity = 127;
+            get_cell(v).velocity = 127;
         }
 
         void set_off(const V2i &v) {
-            data[v.y * width + v.x].velocity = 0;
+            get_cell(v).velocity = 0;
         }
 
         bool is_on(const V2i &v) const {
-            return data[v.y * width + v.x].velocity > 0;
+            return get_velocity(v) > 0;
         }
 
         uint8_t get_velocity(const V2i &v) const {
-            return data[v.y * width + v.x].velocity;
+            return get_cell(v).velocity;
+        }
+
+        void resize_width(int new_width) {
+            data.resize(new_width * height);
+            width = new_width;
         }
     };
 
