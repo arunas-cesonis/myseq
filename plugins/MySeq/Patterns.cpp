@@ -10,6 +10,7 @@
 #include "Patterns.hpp"
 
 namespace myseq {
+
     Pattern pattern_from_json(const rapidjson::Value &value) {
         auto width = value["width"].GetInt();
         auto height = value["height"].GetInt();
@@ -27,7 +28,6 @@ namespace myseq {
 
     State State::from_json_string(const char *s) {
         rapidjson::Document d;
-        printf("from_json_string: %s\n", s);
         rapidjson::ParseResult ok = d.Parse(s);
         if (!ok) {
             fprintf(stderr, "JSON parse error: %s (%lu)",
@@ -35,41 +35,55 @@ namespace myseq {
             exit(EXIT_FAILURE);
         }
         auto arr = d["patterns"].GetArray();
-        printf("patterns: %d\n", arr.Size());
-        auto selected = d["selected"].GetInt();
-        printf("selected: %d\n", selected);
         State state;
+        state.selected = d["selected"].GetInt();
         for (rapidjson::SizeType i = 0; i < arr.Size(); i++) {
-            printf("pattern: %i\n", i);
             auto obj = arr[i].GetObject();
             int index = obj["i"].GetInt();
-            printf("pattern: %i index=%d\n", i, index);
             auto pobj = obj["pattern"].GetObject();
             state.patterns[index] = pattern_from_json(pobj);
         }
-        printf("parse ok\n");
         return state;
     }
 
+    void test_serialize() {
+        State state;
+        state.create_pattern(0);
+        state.create_pattern(1);
+        state.selected = 1;
+        state.patterns[0].set_velocity(V2i(0, 1), 100);
+        state.patterns[1].set_velocity(V2i(2, 3), 99);
+        state.patterns[1].set_velocity(V2i(3, 4), 102);
+        state.patterns[1].set_velocity(V2i(5, 6), 103);
 
-    [[nodiscard]] rapidjson::Document pattern_to_json(const Pattern &pattern) {
-        rapidjson::Document d;
-        d.SetObject();
-        d.GetObject().AddMember("width", pattern.width, d.GetAllocator());
-        d.GetObject().AddMember("height", pattern.height, d.GetAllocator());
+        const auto s = state.to_json_string();
+        State state1 = State::from_json_string(s.c_str());
+
+        assert(state.selected == state1.selected);
+        assert(state.patterns.size() == state1.patterns.size());
+        assert(state.patterns[0].get_velocity(V2i(0, 1)) == state1.patterns[0].get_velocity(V2i(0, 1)));
+        assert(state.patterns[1].get_velocity(V2i(2, 3)) == state1.patterns[1].get_velocity(V2i(2, 3)));
+    }
+
+
+    [[nodiscard]] rapidjson::Value
+    pattern_to_json(const Pattern &pattern, rapidjson::Document::AllocatorType &allocator) {
+        rapidjson::Value pobj(rapidjson::kObjectType);
+        pobj.GetObject().AddMember("width", pattern.width, allocator);
+        pobj.GetObject().AddMember("height", pattern.height, allocator);
         //d.GetObject().AddMember("data", height, d.GetAllocator());
         rapidjson::Value data_arr(rapidjson::kArrayType);
         for (int i = 0; i < pattern.data.size(); i++) {
             const auto &cell = pattern.data[i];
             if (cell.velocity > 0) {
                 rapidjson::Value o(rapidjson::kObjectType);
-                o.GetObject().AddMember("i", (int) i, d.GetAllocator());
-                o.GetObject().AddMember("v", (int) cell.velocity, d.GetAllocator());
-                data_arr.PushBack(o, d.GetAllocator());
+                o.GetObject().AddMember("i", (int) i, allocator);
+                o.GetObject().AddMember("v", (int) cell.velocity, allocator);
+                data_arr.PushBack(o, allocator);
             }
         }
-        d.GetObject().AddMember("data", data_arr, d.GetAllocator());
-        return d;
+        pobj.GetObject().AddMember("data", data_arr, allocator);
+        return pobj;
     }
 
     [[nodiscard]] rapidjson::Document state_to_json(const State &state) {
@@ -80,7 +94,7 @@ namespace myseq {
         for (auto &kv: state.patterns) {
             rapidjson::Value o(rapidjson::kObjectType);
             o.GetObject().AddMember("i", (int) kv.first, d.GetAllocator());
-            o.GetObject().AddMember("pattern", pattern_to_json(kv.second), d.GetAllocator());
+            o.GetObject().AddMember("pattern", pattern_to_json(kv.second, d.GetAllocator()), d.GetAllocator());
             patterns_arr.PushBack(o, d.GetAllocator());
         }
         d.GetObject().AddMember("patterns", patterns_arr, d.GetAllocator());
@@ -91,7 +105,8 @@ namespace myseq {
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         state_to_json(*this).Accept(writer);
-        return buffer.GetString();
+        const auto s = buffer.GetString();
+        return s;
     }
 
 }

@@ -134,10 +134,6 @@ START_NAMESPACE_DISTRHO
                 writeMidiEvent(evt);
             };
             player.run(send, state, tp);
-
-
-            const std::size_t pattern_id = 0;
-            const auto &p = state.get_pattern(pattern_id);
             //params.setTimePosition(t);
         }
 

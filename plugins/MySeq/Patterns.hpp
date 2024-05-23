@@ -19,6 +19,8 @@
 
 namespace myseq {
 
+    void test_serialize();
+
     namespace utils {
         static uint8_t row_index_to_midi_note(std::size_t row) {
             assert(row >= 0 && row <= 127);
@@ -87,7 +89,7 @@ namespace myseq {
         int width;
         int height;
 
-        Pattern() : width(16), height(16) {
+        Pattern() : width(32), height(16) {
             data.resize(width * height);
         }
 
@@ -125,6 +127,11 @@ namespace myseq {
             create_pattern(0);
         }
 
+        int next_unused_id(int id) const {
+            while (patterns.find(++id) != patterns.end());
+            return id;
+        }
+
         Pattern &create_pattern(int id) {
             patterns[id] = Pattern();
             return patterns[id];
@@ -149,6 +156,14 @@ namespace myseq {
 
         const Pattern &get_pattern(int id) const {
             return patterns.find(id)->second;
+        }
+
+
+        template<typename F>
+        void each_pattern_id(F f) {
+            for (auto &kv: patterns) {
+                f(kv.first);
+            }
         }
 
         static State from_json_string(const char *s);
