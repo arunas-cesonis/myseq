@@ -155,7 +155,7 @@ START_NAMESPACE_DISTRHO
                             if (valid_cell) {
                                 auto delta_y = mpos.y - drag_started_mpos.y;
                                 auto new_vel = (uint8_t) clamp(
-                                        (int) std::round((float) drag_started_velocity - (float) delta_y), 1, 127);
+                                        (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
                                 p.set_velocity(drag_started_cell, new_vel);
                                 dirty = true;
                             }
