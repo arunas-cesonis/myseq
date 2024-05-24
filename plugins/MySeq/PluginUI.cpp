@@ -29,7 +29,6 @@ START_NAMESPACE_DISTRHO
         V2i drag_started_cell;
         ImVec2 drag_started_mpos;
         ImVec2 offset;
-        int pattern_width_slider_value;
         static constexpr int visible_rows = 16;
 
 
@@ -120,8 +119,8 @@ START_NAMESPACE_DISTRHO
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             auto &p = state.get_selected_pattern();
 
-            pattern_width_slider_value = p.width;
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
+                ImGui::Text("hello");
                 auto avail = ImGui::GetContentRegionAvail();
                 float width = avail.x;
                 const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
@@ -196,10 +195,8 @@ START_NAMESPACE_DISTRHO
                     for (auto j = first_visible_col; j <= last_visible_col; j++) {
                         auto loop_cell = V2i(j, i);
                         auto p_min = ImVec2(cell_width * (float) loop_cell.x,
-//                                            cell_height * (float) (p.height - loop_cell.y - 1)) +
-                                            cell_height * (float) loop_cell.y)
-                                     + cell_padding_xy + cpos +
-                                     offset;
+                                            cell_height * (float) loop_cell.y) +
+                                     offset + cpos;
                         auto p_max = p_min + ImVec2(cell_width, cell_height) - cell_padding_xy;
                         auto vel = p.get_velocity(loop_cell);
                         auto velocity_fade = ((float) vel) / 127.0f;
@@ -225,6 +222,7 @@ START_NAMESPACE_DISTRHO
                     }
                     /// void ImDrawList::AddRect(const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness)
                 }
+
                 draw_list->PopClipRect();
                 draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
                 ImGui::Dummy(ImVec2(width, height));
@@ -239,6 +237,7 @@ START_NAMESPACE_DISTRHO
                     offset.x = std::clamp(offset.x, left, right);
                     offset.y = std::clamp(offset.y, top, bottom);
                 }
+                int pattern_width_slider_value = p.width;
                 if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
                                      ImGuiSliderFlags_None)) {
                     p.resize_width(pattern_width_slider_value);
@@ -248,6 +247,7 @@ START_NAMESPACE_DISTRHO
                 //ImGui::PopID();
 
                 ImGui::Text("cell %d %d", cell.x, cell.y);
+                ImGui::Text("cpos %f %f", cpos.x, cpos.y);
                 ImGui::Text("ImGui::IsMouseDown(ImGuiMouseButton_Left)=%d", ImGui::IsMouseDown(ImGuiMouseButton_Left));
                 ImGui::Text("ImGui::IsMouseDown(ImGuiMouseButton_Right)=%d",
                             ImGui::IsMouseDown(ImGuiMouseButton_Right));

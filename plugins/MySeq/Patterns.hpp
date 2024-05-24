@@ -24,7 +24,7 @@ namespace myseq {
     namespace utils {
         static uint8_t row_index_to_midi_note(std::size_t row) {
             assert(row >= 0 && row <= 127);
-            return row;
+            return 127 - row;
         }
     }
 
@@ -117,11 +117,11 @@ namespace myseq {
             get_cell(v).velocity = 0;
         }
 
-        bool is_on(const V2i &v) const {
+        [[nodiscard]] bool is_on(const V2i &v) const {
             return get_velocity(v) > 0;
         }
 
-        uint8_t get_velocity(const V2i &v) const {
+        [[nodiscard]] uint8_t get_velocity(const V2i &v) const {
             return get_cell(v).velocity;
         }
 
