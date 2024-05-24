@@ -89,7 +89,7 @@ namespace myseq {
         int width;
         int height;
 
-        Pattern() : width(16), height(128) {
+        Pattern() : width(32), height(128) {
             data.resize(width * height);
         }
 

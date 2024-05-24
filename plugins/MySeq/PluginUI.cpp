@@ -92,6 +92,25 @@ START_NAMESPACE_DISTRHO
          */
         void parameterChanged(uint32_t, float) override {}
 
+        float cell_width = 39.0f;
+        float cell_height = 30.0f;
+
+        [[nodiscard]] myseq::V2i
+        calc_cell(const myseq::Pattern &p, const ImVec2 &cpos, const ImVec2 &mpos, const ImVec2 &grid_size) const {
+            if (
+                    mpos.x >= cpos.x && mpos.x < cpos.x + grid_size.x
+                    && mpos.y >= cpos.y && mpos.y < cpos.y + grid_size.y
+                    ) {
+                auto mrow = (int) (std::floor((mpos.y - cpos.y - offset.y) / cell_height));
+                auto mcol = (int) (std::floor((mpos.x - cpos.x - offset.x) / cell_width));
+                mrow = mrow >= p.height ? -1 : mrow;
+                mcol = mcol >= p.width ? -1 : mcol;
+                return {mcol, mrow};
+            } else {
+                return {-1, -1};
+            }
+        }
+
         void onImGuiDisplay() override {
             ImGui::SetNextWindowPos(ImVec2(0, 0));
             ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
@@ -103,39 +122,23 @@ START_NAMESPACE_DISTRHO
 
             pattern_width_slider_value = p.width;
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
-                ImGui::Text("a");
-                ImGui::Text("a");
-                ImGui::Text("a");
-                ImGui::Text("a");
-                ImGui::Text("a");
-
-
-                auto grid_size = ImVec2(400, 300);
-
                 auto avail = ImGui::GetContentRegionAvail();
-                float width = avail.x * 0.5;
-
-                float cell_width = width / (float) p.width;
-                float cell_height = cell_width;
-                cell_width = 40.0;
-                cell_height = 30.0;
+                float width = avail.x;
                 const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
                 const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
                 auto cpos = ImGui::GetCursorPos();
-                auto mpos = ImGui::GetMousePos();
-                auto mrow = (int) (std::floor((mpos.y - cpos.y - offset.y) / cell_height));
                 auto height = cell_height * (float) visible_rows;
-                auto mcol = (int) (std::floor((mpos.x - cpos.x - offset.x) / cell_width));
-                mrow = mrow >= p.height ? -1 : mrow;
-                mcol = mcol >= p.width ? -1 : mcol;
-                auto cell = V2i(mcol, mrow);
+                const auto grid_size = ImVec2(width, height);
+                auto mpos = ImGui::GetMousePos();
+                auto cell = calc_cell(p, cpos, mpos, grid_size);
                 auto valid_cell = cell.x >= 0 && cell.y >= 0;
                 auto *draw_list = ImGui::GetWindowDrawList();
                 auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
+                auto strong_border_color = ImColor(
+                        ImGui::GetStyleColorVec4(ImGuiCol_TableBorderStrong)).operator ImU32();
                 auto ctrl_held = ImGui::GetIO().KeyCtrl;
                 auto alt_held = ImGui::GetIO().KeyAlt;
-
                 switch (interaction) {
                     case Interaction::DrawingCells: {
                         if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
@@ -202,6 +205,10 @@ START_NAMESPACE_DISTRHO
                         auto velocity_fade = ((float) vel) / 127.0f;
                         auto cell_color = ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
                         //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
+                        auto fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
+                        cell_color.Value.x *= fade;
+                        cell_color.Value.y *= fade;
+                        cell_color.Value.z *= fade;
                         draw_list->AddRectFilled(p_min, p_max, cell_color);
                         draw_list->AddRect(p_min, p_max, border_color);
 
@@ -211,22 +218,26 @@ START_NAMESPACE_DISTRHO
                         } else if (vel > 0) {
                             draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
                         } else {
-//                            std::ostringstream os;
-//                            os << loop_cell.x << ' ' << loop_cell.y;
-//                            draw_list->AddText(p_min, IM_COL32_WHITE, os.str().c_str());
+                            // std::ostringstream os;
+                            // os << loop_cell.x << ' ' << loop_cell.y;
+                            // draw_list->AddText(p_min, IM_COL32_WHITE, os.str().c_str());
                         }
                     }
                     /// void ImDrawList::AddRect(const ImVec2& p_min, const ImVec2& p_max, ImU32 col, float rounding, ImDrawFlags flags, float thickness)
                 }
                 draw_list->PopClipRect();
-
-                draw_list->AddRect(cpos, cpos + ImVec2(width, height), IM_COL32_WHITE);
-
-                //ImGui::PushID(777);
-                // ImGui::InvisibleButton("##the_grid", ImVec2(width, height), ImGuiButtonFlags_None);
+                draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
                 ImGui::Dummy(ImVec2(width, height));
+
+
+                const auto left = std::min(0.0f, 0.0f - ((cell_width * (float) p.width) - width));
+                const auto right = 0.0f;
+                const auto top = std::min(0.0f, 0.0f - ((cell_height * (float) p.height) - height));
+                const auto bottom = 0.0f;
                 if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
                     offset += ImGui::GetIO().MouseDelta;
+                    offset.x = std::clamp(offset.x, left, right);
+                    offset.y = std::clamp(offset.y, top, bottom);
                 }
                 if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
                                      ImGuiSliderFlags_None)) {
@@ -236,7 +247,7 @@ START_NAMESPACE_DISTRHO
 
                 //ImGui::PopID();
 
-                ImGui::Text("%d %d", mrow, mcol);
+                ImGui::Text("cell %d %d", cell.x, cell.y);
                 ImGui::Text("ImGui::IsMouseDown(ImGuiMouseButton_Left)=%d", ImGui::IsMouseDown(ImGuiMouseButton_Left));
                 ImGui::Text("ImGui::IsMouseDown(ImGuiMouseButton_Right)=%d",
                             ImGui::IsMouseDown(ImGuiMouseButton_Right));
