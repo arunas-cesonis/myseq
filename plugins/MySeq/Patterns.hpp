@@ -88,12 +88,14 @@ namespace myseq {
         std::valarray<Cell> data;
         int width;
         int height;
+        int first_note;
+        int last_note;
 
-        Pattern() : width(32), height(128) {
+        Pattern() : width(32), height(128), first_note(0), last_note(127) {
             data.resize(width * height);
         }
 
-        Pattern(int width, int height) : width(width), height(height) {
+        Pattern(int width, int height) : width(width), height(height), first_note(0), last_note(127) {
             data.resize(width * height);
         }
 
