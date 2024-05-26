@@ -95,7 +95,8 @@ namespace myseq {
             data.resize(width * height);
         }
 
-        Pattern(int width, int height) : width(width), height(height), first_note(0), last_note(127) {
+        Pattern(int width, int height, int first_note, int last_note) : width(width), height(height),
+                                                                        first_note(first_note), last_note(last_note) {
             data.resize(width * height);
         }
 

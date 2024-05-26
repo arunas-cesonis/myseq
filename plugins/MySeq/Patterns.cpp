@@ -14,8 +14,10 @@ namespace myseq {
     Pattern pattern_from_json(const rapidjson::Value &value) {
         auto width = value["width"].GetInt();
         auto height = value["height"].GetInt();
+        auto first_note = value["first_note"].GetInt();
+        auto last_note = value["last_note"].GetInt();
         auto carr = value["data"].GetArray();
-        Pattern p(width, height);
+        Pattern p(width, height, first_note, last_note);
         for (int i = 0; i < carr.Size(); i++) {
             auto cobj = carr[i].GetObject();
             std::size_t cell_index = cobj["i"].GetInt();
@@ -69,16 +71,19 @@ namespace myseq {
     [[nodiscard]] rapidjson::Value
     pattern_to_json(const Pattern &pattern, rapidjson::Document::AllocatorType &allocator) {
         rapidjson::Value pobj(rapidjson::kObjectType);
-        pobj.GetObject().AddMember("width", pattern.width, allocator);
-        pobj.GetObject().AddMember("height", pattern.height, allocator);
+        pobj.AddMember("width", pattern.width, allocator)
+                .AddMember("height", pattern.height, allocator)
+                .AddMember("first_note", pattern.first_note, allocator)
+                .AddMember("last_note", pattern.last_note, allocator);
         //d.GetObject().AddMember("data", height, d.GetAllocator());
         rapidjson::Value data_arr(rapidjson::kArrayType);
         for (int i = 0; i < pattern.data.size(); i++) {
             const auto &cell = pattern.data[i];
             if (cell.velocity > 0) {
                 rapidjson::Value o(rapidjson::kObjectType);
-                o.GetObject().AddMember("i", (int) i, allocator);
-                o.GetObject().AddMember("v", (int) cell.velocity, allocator);
+                auto ob = o.GetObject();
+                ob.AddMember("i", (int) i, allocator)
+                        .AddMember("v", (int) cell.velocity, allocator);
                 data_arr.PushBack(o, allocator);
             }
         }
