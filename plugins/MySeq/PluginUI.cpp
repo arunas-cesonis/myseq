@@ -66,14 +66,16 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        int publish_count = 0;
+
         void publish() {
             auto s = state.to_json_string();
             setState("pattern", s.c_str());
-#ifdef DEBUG
+// #ifdef DEBUG
             state = myseq::State::from_json_string(s.c_str());
-#endif
+            publish_count += 1;
+// #endif
         }
-
 
     protected:
         static const char *interaction_to_string(Interaction i) {
@@ -117,8 +119,7 @@ START_NAMESPACE_DISTRHO
             }
         }
 
-        static int note_select(const char *label, int note) {
-            assert(std::strlen(label) < 128);
+        static int note_select(int note) {
             int selected_octave = note / 12;
             int selected_note = note % 12;
             auto width = ImGui::CalcItemWidth();
@@ -128,7 +129,7 @@ START_NAMESPACE_DISTRHO
             auto g = ImGui::GetCurrentContext();
             static int click_count = 0;
 
-            if (ImGui::BeginPopupContextItem(label)) {
+            if (ImGui::BeginPopupContextItem("select")) {
                 const int max_note = selected_octave < 10 ? 12 : 7;
                 const auto flags =
                         click_count % 2 == 0 ? ImGuiSelectableFlags_DontClosePopups : ImGuiSelectableFlags_None;
@@ -156,12 +157,12 @@ START_NAMESPACE_DISTRHO
                 }
                 ImGui::EndPopup();
             }
-            char tmp[128];
             const int result = selected_octave * 12 + selected_note;
-            snprintf(tmp, IM_ARRAYSIZE(tmp), "%s: %s", label, ALL_NOTES[result]);
-            if (ImGui::Button(tmp)) {
-                ImGui::OpenPopup(label);
+            ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32_BLACK_TRANS);
+            if (ImGui::SmallButton(ALL_NOTES[result])) {
+                ImGui::OpenPopup("select");
             }
+            ImGui::PopStyleColor();
             return result;
         }
 
@@ -374,32 +375,6 @@ START_NAMESPACE_DISTRHO
                 draw_list->PopClipRect();
                 draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
                 ImGui::Dummy(ImVec2(width, height));
-
-                ImGui::SameLine();
-                ImGui::BeginGroup();
-                if (ImGui::Button("Add pattern")) {
-                    int id = state.next_unused_id(state.selected);
-                    state.create_pattern(id);
-                    state.selected = id;
-                    dirty = true;
-                }
-                if (ImGui::BeginListBox("##patterns")) {
-                    state.each_pattern_id([&](int id) {
-                        if (ImGui::Selectable(std::to_string(id).c_str(), id == state.selected,
-                                              ImGuiSelectableFlags_None,
-                                              ImVec2(0, 0))) {
-                            state.selected = id;
-                        }
-                    });
-                    ImGui::EndListBox();
-                }
-                ImGui::EndGroup();
-
-                p.first_note = note_select("First note", p.first_note);
-                ImGui::SameLine();
-                p.last_note = note_select("Last note", p.last_note);
-                show_keys(p);
-
                 const auto left = std::min(0.0f, 0.0f - ((cell_width * (float) p.width) - width));
                 const auto right = 0.0f;
                 const auto top = std::min(0.0f, 0.0f - ((cell_height * (float) p.height) - height));
@@ -409,6 +384,53 @@ START_NAMESPACE_DISTRHO
                     offset.x = std::clamp(offset.x, left, right);
                     offset.y = std::clamp(offset.y, top, bottom);
                 }
+
+                ImGui::SameLine();
+                ImGui::BeginGroup();
+                if (ImGui::Button("Add pattern")) {
+                    int id = state.next_unused_id(state.selected);
+                    state.create_pattern(id);
+                    state.selected = id;
+                    dirty = true;
+                }
+
+                int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
+                // static ImGuiTableFlags flags =
+                //         ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable
+                //         | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti
+                //         | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_NoBordersInBody
+                //         | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY
+                //         | ImGuiTableFlags_SizingFixedFit;
+                if (ImGui::BeginTable("##patterns_table", 3, patterns_table_flags)) {
+                    ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
+                    ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 1);
+                    ImGui::TableSetupColumn("last note", ImGuiTableColumnFlags_None, 0.0, 2);
+                    ImGui::TableHeadersRow();
+                    state.each_pattern_id([&](int id) {
+                        ImGui::TableNextRow();
+                        ImGui::TableNextColumn();
+                        int flags = ImGuiSelectableFlags_None;
+                        if (ImGui::Selectable(std::to_string(id).c_str(), state.selected == id, flags)) {
+                            state.selected = id;
+                            dirty = true;
+                        }
+                        ImGui::TableNextColumn();
+                        ImGui::PushID(id);
+                        myseq::Pattern &tmp = state.get_pattern(id);
+                        ImGui::PushID(1);
+                        tmp.first_note = note_select(tmp.first_note);
+                        ImGui::PopID();
+                        ImGui::TableNextColumn();
+                        ImGui::PushID(2);
+                        tmp.last_note = note_select(tmp.last_note);
+                        ImGui::PopID();
+                        ImGui::PopID();
+                    });
+                    ImGui::EndTable();
+                }
+
+                ImGui::EndGroup();
+
                 int pattern_width_slider_value = p.width;
                 if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
                                      ImGuiSliderFlags_None)) {
@@ -416,8 +438,13 @@ START_NAMESPACE_DISTRHO
                     dirty = true;
                 }
 
+                show_keys(p);
+                //p.first_note = note_select("First note", p.first_note);
+                //ImGui::SameLine();
+                //p.last_note = note_select("Last note", p.last_note);
                 //ImGui::PopID();
 
+                ImGui::Text("publish count %d", publish_count);
                 ImGui::Text("cell %d %d", cell.x, cell.y);
                 ImGui::Text("cpos %f %f", cpos.x, cpos.y);
                 ImGui::Text("first_note %d %d", p.first_note, p.last_note);
