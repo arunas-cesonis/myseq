@@ -134,6 +134,7 @@ namespace myseq {
         }
     };
 
+
     struct State {
         std::map<int, Pattern> patterns;
         int selected;
@@ -170,10 +171,9 @@ namespace myseq {
             return patterns.find(id)->second;
         }
 
-        const Pattern &get_pattern(int id) const {
+        [[nodiscard]] const Pattern &get_pattern(int id) const {
             return patterns.find(id)->second;
         }
-
 
         template<typename F>
         void each_pattern_id(F f) {

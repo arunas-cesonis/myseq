@@ -98,8 +98,8 @@ START_NAMESPACE_DISTRHO
          */
         void parameterChanged(uint32_t, float) override {}
 
-        float cell_width = 29.0f;
-        float cell_height = 20.0f;
+        float cell_width = 60.0f;
+        float cell_height = 40.0f;
 
         [[nodiscard]] myseq::V2i
         calc_cell(const myseq::Pattern &p, const ImVec2 &cpos, const ImVec2 &mpos, const ImVec2 &grid_size) const {
@@ -168,7 +168,9 @@ START_NAMESPACE_DISTRHO
         void show_keys(myseq::Pattern &p) {
             const auto width = ImGui::GetContentRegionAvail().x;
             const auto height = 70.0f;
-            const auto cpos = ImGui::GetCursorPos();
+            const auto cpos = ImGui::GetCursorPos() - ImVec2(
+                    ImGui::GetScrollX(),
+                    ImGui::GetScrollY());
             auto dl = ImGui::GetWindowDrawList();
             const auto octaves = 10;
             const auto octave_width = width / (float) octaves;
@@ -271,7 +273,7 @@ START_NAMESPACE_DISTRHO
                 const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
                 const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
-                auto cpos = ImGui::GetCursorPos();
+                auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
                 auto height = cell_height * (float) visible_rows;
                 const auto grid_size = ImVec2(width, height);
                 auto mpos = ImGui::GetMousePos();
@@ -373,6 +375,26 @@ START_NAMESPACE_DISTRHO
                 draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
                 ImGui::Dummy(ImVec2(width, height));
 
+                ImGui::SameLine();
+                ImGui::BeginGroup();
+                if (ImGui::Button("Add pattern")) {
+                    int id = state.next_unused_id(state.selected);
+                    state.create_pattern(id);
+                    state.selected = id;
+                    dirty = true;
+                }
+                if (ImGui::BeginListBox("##patterns")) {
+                    state.each_pattern_id([&](int id) {
+                        if (ImGui::Selectable(std::to_string(id).c_str(), id == state.selected,
+                                              ImGuiSelectableFlags_None,
+                                              ImVec2(0, 0))) {
+                            state.selected = id;
+                        }
+                    });
+                    ImGui::EndListBox();
+                }
+                ImGui::EndGroup();
+
                 p.first_note = note_select("First note", p.first_note);
                 ImGui::SameLine();
                 p.last_note = note_select("Last note", p.last_note);
@@ -407,23 +429,6 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("corner=%f %f", corner.x, corner.y);
                 ImGui::Text("valid_cell=%d", valid_cell);
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
-            }
-
-            if (ImGui::Button("Add pattern")) {
-                int id = state.next_unused_id(state.selected);
-                state.create_pattern(id);
-                state.selected = id;
-                dirty = true;
-            }
-
-            if (ImGui::BeginListBox("##patterns")) {
-                state.each_pattern_id([&](int id) {
-                    if (ImGui::Selectable(std::to_string(id).c_str(), id == state.selected, ImGuiSelectableFlags_None,
-                                          ImVec2(0, 0))) {
-                        state.selected = id;
-                    }
-                });
-                ImGui::EndListBox();
             }
 
             ImGui::End();
