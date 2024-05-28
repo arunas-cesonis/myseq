@@ -150,7 +150,7 @@ namespace myseq {
             return max + 1;
         }
 
-        int selected;
+        int selected = -1;
 
         State() = default;
 
@@ -193,7 +193,7 @@ namespace myseq {
             return *(patterns.end());
         }
 
-        const Pattern &get_pattern(int id) const {
+        [[nodiscard]] const Pattern &get_pattern(int id) const {
             for (const auto &p: patterns) {
                 if (p.id == id) {
                     return p;
