@@ -268,6 +268,7 @@ START_NAMESPACE_DISTRHO
             float cell_padding = 4.0;
             bool dirty = false;
             bool create = false;
+            bool delete_ = false;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             if (state.num_patterns() == 0) {
                 state.selected = state.create_pattern().id;
@@ -395,9 +396,14 @@ START_NAMESPACE_DISTRHO
 
                 ImGui::SameLine();
                 ImGui::BeginGroup();
-                if (ImGui::Button("Add pattern")) {
+                if (ImGui::Button("Add")) {
                     dirty = true;
                     create = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Delete")) {
+                    dirty = true;
+                    delete_ = true;
                 }
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
@@ -487,6 +493,9 @@ START_NAMESPACE_DISTRHO
             ImGui::End();
             if (create) {
                 state.selected = state.create_pattern().id;
+            }
+            if (delete_) {
+                state.delete_pattern(state.selected);
             }
             if (dirty) {
                 publish();

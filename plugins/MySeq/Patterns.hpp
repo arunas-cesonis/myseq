@@ -162,6 +162,20 @@ namespace myseq {
             return patterns.size();
         }
 
+        void delete_pattern(const int id) {
+            for (auto it = patterns.begin(); it != patterns.end(); it++) {
+                if (it->id == id) {
+                    it = patterns.erase(it);
+                    if (it == patterns.end()) {
+                        selected = -1;
+                    } else {
+                        selected = it->id;
+                    }
+                    return;
+                }
+            }
+        }
+
         Pattern &create_pattern() {
             return patterns.emplace_back(next_unused_id());
         }
