@@ -54,7 +54,6 @@ START_NAMESPACE_DISTRHO
             const double scaleFactor = getScaleFactor();
 
             myseq::test_serialize();
-            state.selected = state.create_pattern().id;
 
             if (d_isEqual(scaleFactor, 1.0)) {
                 setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
@@ -268,7 +267,12 @@ START_NAMESPACE_DISTRHO
 
             float cell_padding = 4.0;
             bool dirty = false;
+            bool create = false;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
+            if (state.num_patterns() == 0) {
+                state.selected = state.create_pattern().id;
+                dirty = true;
+            }
             auto &p = state.get_selected_pattern();
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
@@ -392,8 +396,8 @@ START_NAMESPACE_DISTRHO
                 ImGui::SameLine();
                 ImGui::BeginGroup();
                 if (ImGui::Button("Add pattern")) {
-                    state.selected = state.create_pattern().id;
                     dirty = true;
+                    create = true;
                 }
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
@@ -403,13 +407,16 @@ START_NAMESPACE_DISTRHO
                 //         | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_NoBordersInBody
                 //         | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY
                 //         | ImGuiTableFlags_SizingFixedFit;
-                if (ImGui::BeginTable("##patterns_table", 3, patterns_table_flags)) {
+                if (ImGui::BeginTable("##patterns_table", 4, patterns_table_flags)) {
                     ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
-                    ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 1);
-                    ImGui::TableSetupColumn("last note", ImGuiTableColumnFlags_None, 0.0, 2);
+                    ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
+                    ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 2);
+                    ImGui::TableSetupColumn("last note", ImGuiTableColumnFlags_None, 0.0, 3);
                     ImGui::TableHeadersRow();
                     state.each_pattern([&](const myseq::Pattern &pp) {
                         ImGui::TableNextRow();
+
+                        // id
                         ImGui::TableNextColumn();
                         int flags = ImGuiSelectableFlags_None;
                         const auto id = pp.id;
@@ -417,15 +424,31 @@ START_NAMESPACE_DISTRHO
                             state.selected = id;
                             dirty = true;
                         }
+
+                        // length
+                        ImGui::TableNextColumn();
+                        ImGui::Text("%s", std::to_string(p.width).c_str());
+
+                        // first_note
                         ImGui::TableNextColumn();
                         ImGui::PushID(id);
                         myseq::Pattern &tmp = state.get_pattern(id);
                         ImGui::PushID(1);
-                        tmp.first_note = note_select(tmp.first_note);
+                        const auto first_note = note_select(tmp.first_note);
+                        if (tmp.first_note != first_note) {
+                            tmp.first_note = first_note;
+                            dirty = true;
+                        }
                         ImGui::PopID();
+
+                        // last_note
                         ImGui::TableNextColumn();
                         ImGui::PushID(2);
-                        tmp.last_note = note_select(tmp.last_note);
+                        const auto last_note = note_select(tmp.last_note);
+                        if (tmp.last_note != last_note) {
+                            tmp.last_note = last_note;
+                            dirty = true;
+                        }
                         ImGui::PopID();
                         ImGui::PopID();
                     });
@@ -435,7 +458,7 @@ START_NAMESPACE_DISTRHO
                 ImGui::EndGroup();
 
                 int pattern_width_slider_value = p.width;
-                if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 64, nullptr,
+                if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
                                      ImGuiSliderFlags_None)) {
                     p.resize_width(pattern_width_slider_value);
                     dirty = true;
@@ -462,6 +485,9 @@ START_NAMESPACE_DISTRHO
             }
 
             ImGui::End();
+            if (create) {
+                state.selected = state.create_pattern().id;
+            }
             if (dirty) {
                 publish();
             }

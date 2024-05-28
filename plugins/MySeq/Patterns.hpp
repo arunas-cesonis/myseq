@@ -152,8 +152,7 @@ namespace myseq {
 
         int selected;
 
-        State() : selected(-1) {
-        }
+        State() = default;
 
         [[nodiscard]] Opaque to_json() const;
 

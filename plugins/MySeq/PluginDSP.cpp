@@ -158,6 +158,7 @@ START_NAMESPACE_DISTRHO
                 case 0:
                     st.key = "pattern";
                     st.label = "Pattern";
+                    state = myseq::State();
                     st.defaultValue = String(state.to_json_string().c_str());
                     break;
             }

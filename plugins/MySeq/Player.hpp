@@ -57,14 +57,17 @@ namespace myseq {
     };
 
     struct ActivePattern {
+        int pattern_id;
         double start_time{};
         double end_time{};
         bool finished{};
 
         ActivePattern() = default;
 
-        ActivePattern(double start_time, double end_time, bool finished) : start_time(start_time), end_time(end_time),
-                                                                           finished(finished) {}
+        ActivePattern(int pattern_id, double start_time, double end_time, bool finished) : pattern_id(pattern_id),
+                                                                                           start_time(start_time),
+                                                                                           end_time(end_time),
+                                                                                           finished(finished) {}
     };
 
 
@@ -77,7 +80,7 @@ namespace myseq {
 
         void start_pattern(const Note &note, double start_time) {
             d_debug("start pattern note=%02x start_time=%f", note.note, start_time);
-            active_patterns[note] = ActivePattern(start_time, 0.0, false);
+            active_patterns[note] = ActivePattern(note.note, start_time, 0.0, false);
         }
 
         void stop_pattern(const Note &note, double end_time) {
@@ -95,7 +98,7 @@ namespace myseq {
             if (tp.playing) {
                 for (auto it = active_patterns.begin(); it != active_patterns.end();) {
                     auto &ap = *it;
-                    const auto &p = state.get_pattern(ap.first.note);
+                    const auto &p = state.get_pattern(ap.second.pattern_id);
                     double window_start = tp.time;
                     double window_end = ap.second.finished ? std::min(window_start + tp.window, ap.second.end_time) :
                                         window_start + tp.window;
