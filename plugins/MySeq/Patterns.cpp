@@ -60,8 +60,6 @@ namespace myseq {
         State state1 = State::from_json_string(s.c_str());
 
         assert(state.selected == state1.selected);
-        std::cout << state.num_patterns() << std::endl;
-        std::cout << state1.num_patterns() << std::endl;
         assert(state.num_patterns() == state1.num_patterns());
         assert(state.get_pattern(a.id).get_velocity(V2i(0, 1)) == state1.get_pattern(a.id).get_velocity(V2i(0, 1)));
         assert(state.get_pattern(b.id).get_velocity(V2i(2, 3)) == state1.get_pattern(b.id).get_velocity(V2i(2, 3)));

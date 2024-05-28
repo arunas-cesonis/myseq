@@ -433,7 +433,7 @@ START_NAMESPACE_DISTRHO
 
                         // length
                         ImGui::TableNextColumn();
-                        ImGui::Text("%s", std::to_string(p.width).c_str());
+                        ImGui::Text("%s", std::to_string(pp.width).c_str());
 
                         // first_note
                         ImGui::TableNextColumn();
