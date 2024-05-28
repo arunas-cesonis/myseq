@@ -14,7 +14,6 @@
 #include <optional>
 #include "src/DistrhoDefines.h"
 
-#include "optional.hpp"
 #include "TimePositionCalc.hpp"
 
 namespace myseq {
@@ -86,17 +85,19 @@ namespace myseq {
 
     struct Pattern {
         std::valarray<Cell> data;
+        int id;
         int width;
         int height;
         int first_note;
         int last_note;
 
-        Pattern() : width(32), height(128), first_note(0), last_note(127) {
+        explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             data.resize(width * height);
         }
 
-        Pattern(int width, int height, int first_note, int last_note) : width(width), height(height),
-                                                                        first_note(first_note), last_note(last_note) {
+        Pattern(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
+                                                                                first_note(first_note),
+                                                                                last_note(last_note) {
             data.resize(width * height);
         }
 
@@ -104,7 +105,7 @@ namespace myseq {
             return data[v.x * height + v.y];
         }
 
-        const Cell &get_cell(const V2i &v) const {
+        [[nodiscard]] const Cell &get_cell(const V2i &v) const {
             return data[v.x * height + v.y];
         }
 
@@ -134,33 +135,36 @@ namespace myseq {
         }
     };
 
+    struct Opaque;
 
     struct State {
-        std::map<int, Pattern> patterns;
+        std::vector<Pattern> patterns;
+
+        [[nodiscard]] int next_unused_id() {
+            int max = -1;
+            for (auto &p: patterns) {
+                if (p.id > max) {
+                    max = p.id;
+                }
+            }
+            return max + 1;
+        }
+
         int selected;
 
-        State() {
-            selected = 0;
-            create_pattern(0);
+        State() : selected(-1) {
         }
 
-        int next_unused_id(int id) const {
-            while (patterns.find(++id) != patterns.end());
-            return id;
+        [[nodiscard]] Opaque to_json() const;
+
+        [[nodiscard]] std::string to_json_string() const;
+
+        [[nodiscard]] auto num_patterns() const {
+            return patterns.size();
         }
 
-        Pattern &create_pattern(int id) {
-            patterns[id] = Pattern();
-            return patterns[id];
-        }
-
-        Pattern &get_create_if_not_exists_pattern(int id) {
-            auto it = patterns.find(id);
-            if (it == patterns.end()) {
-                return create_pattern(id);
-            } else {
-                return it->second;
-            }
+        Pattern &create_pattern() {
+            return patterns.emplace_back(next_unused_id());
         }
 
         Pattern &get_selected_pattern() {
@@ -168,23 +172,32 @@ namespace myseq {
         }
 
         Pattern &get_pattern(int id) {
-            return patterns.find(id)->second;
+            for (auto &p: patterns) {
+                if (p.id == id) {
+                    return p;
+                }
+            }
+            return *(patterns.end());
         }
 
-        [[nodiscard]] const Pattern &get_pattern(int id) const {
-            return patterns.find(id)->second;
+        const Pattern &get_pattern(int id) const {
+            for (const auto &p: patterns) {
+                if (p.id == id) {
+                    return p;
+                }
+            }
+            return *(patterns.end());
         }
 
         template<typename F>
-        void each_pattern_id(F f) {
-            for (auto &kv: patterns) {
-                f(kv.first);
+        void each_pattern(F f) {
+            for (auto &p: patterns) {
+                f(p);
             }
         }
 
         static State from_json_string(const char *s);
 
-        [[nodiscard]] std::string to_json_string() const;
     };
 }
 

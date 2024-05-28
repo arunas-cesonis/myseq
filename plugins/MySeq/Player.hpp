@@ -148,8 +148,8 @@ namespace myseq {
             Player player;
             State seq;
 
-            seq.create_pattern(0);
-            auto &p = seq.get_pattern(0);
+            const auto pp = seq.create_pattern();
+            auto &p = seq.get_pattern(pp.id);
             for (int i = 0; i < p.height; i++) {
                 for (int j = 0; j < p.width; j++) {
                     p.set_on(V2i(j, i));

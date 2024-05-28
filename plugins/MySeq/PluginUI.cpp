@@ -54,7 +54,7 @@ START_NAMESPACE_DISTRHO
             const double scaleFactor = getScaleFactor();
 
             myseq::test_serialize();
-            state.create_pattern(0);
+            state.selected = state.create_pattern().id;
 
             if (d_isEqual(scaleFactor, 1.0)) {
                 setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
@@ -100,17 +100,15 @@ START_NAMESPACE_DISTRHO
          */
         void parameterChanged(uint32_t, float) override {}
 
-        float cell_width = 60.0f;
-        float cell_height = 40.0f;
-
         [[nodiscard]] myseq::V2i
-        calc_cell(const myseq::Pattern &p, const ImVec2 &cpos, const ImVec2 &mpos, const ImVec2 &grid_size) const {
+        calc_cell(const myseq::Pattern &p, const ImVec2 &cpos, const ImVec2 &mpos, const ImVec2 &grid_size,
+                  const ImVec2 &cell_size) const {
             if (
                     mpos.x >= cpos.x && mpos.x < cpos.x + grid_size.x
                     && mpos.y >= cpos.y && mpos.y < cpos.y + grid_size.y
                     ) {
-                auto mrow = (int) (std::floor((mpos.y - cpos.y - offset.y) / cell_height));
-                auto mcol = (int) (std::floor((mpos.x - cpos.x - offset.x) / cell_width));
+                auto mrow = (int) (std::floor((mpos.y - cpos.y - offset.y) / cell_size.y));
+                auto mcol = (int) (std::floor((mpos.x - cpos.x - offset.x) / cell_size.x));
                 mrow = mrow >= p.height ? -1 : mrow;
                 mcol = mcol >= p.width ? -1 : mcol;
                 return {mcol, mrow};
@@ -259,26 +257,32 @@ START_NAMESPACE_DISTRHO
         }
 
         void onImGuiDisplay() override {
-            ImGui::SetNextWindowPos(ImVec2(0, 0));
-            ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
-            int window_flags = ImGuiWindowFlags_NoDecoration;
+            // ImGui::SetNextWindowPos(ImVec2(0, 0));
+            //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
+
+            int window_flags =
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+            const ImGuiViewport *viewport = ImGui::GetMainViewport();
+            ImGui::SetNextWindowPos(viewport->Pos);
+            ImGui::SetNextWindowSize(viewport->Size);
+
             float cell_padding = 4.0;
             bool dirty = false;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             auto &p = state.get_selected_pattern();
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
-                ImGui::Text("hello");
-                auto avail = ImGui::GetContentRegionAvail();
+
                 float width = ImGui::CalcItemWidth();
                 const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
                 const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
                 auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
-                auto height = cell_height * (float) visible_rows;
+                auto cell_size = ImVec2(width / (float) p.width, 32.0);
+                auto height = cell_size.y * (float) visible_rows;
                 const auto grid_size = ImVec2(width, height);
                 auto mpos = ImGui::GetMousePos();
-                auto cell = calc_cell(p, cpos, mpos, grid_size);
+                auto cell = calc_cell(p, cpos, mpos, grid_size, cell_size);
                 auto valid_cell = cell.x >= 0 && cell.y >= 0;
                 auto *draw_list = ImGui::GetWindowDrawList();
                 auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
@@ -336,8 +340,8 @@ START_NAMESPACE_DISTRHO
                         }
                 }
 
-                const auto corner = (ImVec2(0.0, 0.0) - offset) / ImVec2(cell_width, cell_height);
-                const auto corner2 = corner + ImVec2(width, height) / ImVec2(cell_width, cell_height);
+                const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
+                const auto corner2 = corner + ImVec2(width, height) / cell_size;
                 const auto first_visible_row = (int) std::floor(corner.y);
                 const auto last_visible_row = std::min(p.height - 1, (int) std::floor(corner2.y));
                 const auto first_visible_col = std::max(0, (int) std::floor(corner.x));
@@ -348,10 +352,10 @@ START_NAMESPACE_DISTRHO
                 for (auto i = first_visible_row; i <= last_visible_row; i++) {
                     for (auto j = first_visible_col; j <= last_visible_col; j++) {
                         auto loop_cell = V2i(j, i);
-                        auto p_min = ImVec2(cell_width * (float) loop_cell.x,
-                                            cell_height * (float) loop_cell.y) +
+                        auto p_min = ImVec2(cell_size.x * (float) loop_cell.x,
+                                            cell_size.y * (float) loop_cell.y) +
                                      offset + cpos;
-                        auto p_max = p_min + ImVec2(cell_width, cell_height) - cell_padding_xy;
+                        auto p_max = p_min + ImVec2(cell_size.x, cell_size.y) - cell_padding_xy;
                         auto vel = p.get_velocity(loop_cell);
                         auto velocity_fade = ((float) vel) / 127.0f;
                         auto cell_color = ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
@@ -375,9 +379,9 @@ START_NAMESPACE_DISTRHO
                 draw_list->PopClipRect();
                 draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
                 ImGui::Dummy(ImVec2(width, height));
-                const auto left = std::min(0.0f, 0.0f - ((cell_width * (float) p.width) - width));
+                const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.width) - width));
                 const auto right = 0.0f;
-                const auto top = std::min(0.0f, 0.0f - ((cell_height * (float) p.height) - height));
+                const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.height) - height));
                 const auto bottom = 0.0f;
                 if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
                     offset += ImGui::GetIO().MouseDelta;
@@ -388,9 +392,7 @@ START_NAMESPACE_DISTRHO
                 ImGui::SameLine();
                 ImGui::BeginGroup();
                 if (ImGui::Button("Add pattern")) {
-                    int id = state.next_unused_id(state.selected);
-                    state.create_pattern(id);
-                    state.selected = id;
+                    state.selected = state.create_pattern().id;
                     dirty = true;
                 }
 
@@ -406,10 +408,11 @@ START_NAMESPACE_DISTRHO
                     ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 1);
                     ImGui::TableSetupColumn("last note", ImGuiTableColumnFlags_None, 0.0, 2);
                     ImGui::TableHeadersRow();
-                    state.each_pattern_id([&](int id) {
+                    state.each_pattern([&](const myseq::Pattern &pp) {
                         ImGui::TableNextRow();
                         ImGui::TableNextColumn();
                         int flags = ImGuiSelectableFlags_None;
+                        const auto id = pp.id;
                         if (ImGui::Selectable(std::to_string(id).c_str(), state.selected == id, flags)) {
                             state.selected = id;
                             dirty = true;
@@ -432,7 +435,7 @@ START_NAMESPACE_DISTRHO
                 ImGui::EndGroup();
 
                 int pattern_width_slider_value = p.width;
-                if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
+                if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 64, nullptr,
                                      ImGuiSliderFlags_None)) {
                     p.resize_width(pattern_width_slider_value);
                     dirty = true;

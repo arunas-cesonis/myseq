@@ -55,7 +55,6 @@
    @note DO NOT USE THIS UNLESS STRICTLY NECESSARY!!
          Try to avoid it at all costs!
  */
-#define DISTRHO_PLUGIN_WANT_DIRECT_ACCESS 0
 
 /**
    Whether the plugin introduces latency during audio or midi processing.
