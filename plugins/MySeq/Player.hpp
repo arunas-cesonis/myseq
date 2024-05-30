@@ -19,25 +19,46 @@ namespace myseq {
         bool playing;
     };
 
+    struct ActiveNoteData {
+        double end_time;
+        int emitter_id;
+    };
+
     struct ActiveNotes {
-        std::map<Note, double> m;
+        std::map<Note, ActiveNoteData> m;
 
         template<typename F>
-        void play_note(F note_event, uint8_t note, uint8_t velocity, double start_time, double end_time) {
+        void
+        play_note(F note_event, uint8_t note, uint8_t velocity, double start_time, double end_time, int emitter_id) {
             Note note1 = {note, 0};
             auto active = m.find(note1);
             if (active != m.end()) {
                 note_event(active->first.note, 0.0, start_time);
                 m.erase(active);
             }
-            m[note1] = end_time;
+            m[note1] = {end_time, emitter_id};
             note_event(note, velocity, start_time);
+        }
+
+        template<typename F>
+        void handle_early_note_offs(F note_event, const TimeParams &tp, int emitter_id, double end_time) {
+            for (auto it = m.begin(); it != m.end();) {
+                if (it->second.emitter_id == emitter_id) {
+                    double t = std::min(end_time, it->second.end_time) - tp.time;
+                    if (t < tp.window) {
+                        note_event(it->first.note, 0.0, t);
+                        it = m.erase(it);
+                    } else {
+                        ++it;
+                    }
+                }
+            }
         }
 
         template<typename F>
         void handle_note_offs(F note_event, const TimeParams &tp) {
             for (auto it = m.begin(); it != m.end();) {
-                double t = it->second - tp.time;
+                double t = it->second.end_time - tp.time;
                 if (t < tp.window) {
                     note_event(it->first.note, 0.0, t);
                     it = m.erase(it);
@@ -57,7 +78,7 @@ namespace myseq {
     };
 
     struct ActivePattern {
-        int pattern_id;
+        int pattern_id{};
         double start_time{};
         double end_time{};
         bool finished{};
@@ -73,28 +94,46 @@ namespace myseq {
 
     struct Player {
         std::map<Note, ActivePattern> active_patterns;
-        std::map<Note, double> active_notes;
-        ActiveNotes an;
+        ActiveNotes an = ActiveNotes();
 
         Player() = default;
 
-        void start_pattern(const Note &note, double start_time) {
+        void start_pattern(const State &state, const Note &note, double start_time, const TimeParams &tp) {
             d_debug("start pattern note=%02x start_time=%f", note.note, start_time);
-            active_patterns[note] = ActivePattern(note.note, start_time, 0.0, false);
+
+            // 1. Find first pattern that has note in the range
+            auto it = state.patterns.begin();
+            while (it != state.patterns.end() && !(it->first_note <= note.note && note.note <= it->last_note)) {
+                ++it;
+            }
+            if (it == state.patterns.end()) {
+                d_debug("no pattern found for note=%02x", note.note);
+                return;
+            }
+            const auto total_notes = it->last_note - it->first_note + 1;
+            const auto percent_from_start = (float) (note.note - it->first_note) / (float) total_notes;
+            const double pattern_duration = tp.step_duration * static_cast<double>(it->width);
+            const auto start_time_offset = percent_from_start * pattern_duration;
+            const auto new_start_time = start_time - start_time_offset;
+            d_debug("total_notes=%d percent_from_start=%f pattern_duration=%f start_time_offset=%f new_start_time=%f",
+                    total_notes, percent_from_start, pattern_duration, start_time_offset, new_start_time);
+            active_patterns[note] = ActivePattern(it->id, new_start_time, 0.0, false);
         }
 
         void stop_pattern(const Note &note, double end_time) {
             auto &ap = active_patterns[note];
-            assert(!ap.finished);
             d_debug("end pattern note=%02x start_time=%f end_time=%f duration=%f", note.note, ap.start_time,
                     ap.end_time,
                     ap.end_time - ap.start_time);
+            if (ap.finished) {
+                return;
+            }
             ap.end_time = end_time;
             ap.finished = true;
         }
 
         template<typename F>
-        void run(F note_event, const myseq::State &state, const TimeParams &tp) {
+        void run(F note_event, const myseq::State &state, const TimeParams &tp, double frames_per_tick) {
             if (tp.playing) {
                 for (auto it = active_patterns.begin(); it != active_patterns.end();) {
                     auto &ap = *it;
@@ -130,17 +169,31 @@ namespace myseq {
                         for (int row_index = 0; row_index < p.height; row_index++) {
                             const auto v = p.get_velocity(V2i(column_index, row_index));
                             if (v > 0.0) {
-                                an.play_note(note_event, utils::row_index_to_midi_note(row_index),
-                                             v,
-                                             column_time,
-                                             window_start + column_time + tp.step_duration
-                                );
+                                const auto step_end_time = window_start + column_time + tp.step_duration;
+                                const auto note_end_time = ap.second.finished ? std::min(step_end_time,
+                                                                                         ap.second.end_time)
+                                                                              : step_end_time;
+
+                                // This check prevents 0-length notes being played when input note ends
+                                const auto note_length = note_end_time - (window_start + column_time);
+                                if (note_length > 0.0) {
+                                    an.play_note(note_event, utils::row_index_to_midi_note(row_index),
+                                                 v,
+                                                 column_time,
+                                                 note_end_time,
+                                                 p.id
+                                    );
+                                }
                             }
                         }
+                    }
+                    if (ap.second.finished) {
+                        an.handle_early_note_offs(note_event, tp, p.id, ap.second.end_time);
                     }
                 }
                 an.handle_note_offs(note_event, tp);
             } else {
+                active_patterns.clear();
                 an.stop_notes(note_event);
             }
         }
@@ -148,43 +201,29 @@ namespace myseq {
 
     struct Test {
         static void test_player_run() {
+            State state;
+            auto &p = state.create_pattern();
+            p.first_note = 0;
+            p.last_note = 15;
+            std::cout << "p.id=" << p.id << std::endl;
+            std::cout << "p.first_note=" << p.first_note << std::endl;
+            std::cout << "p.last_note=" << p.last_note << std::endl;
             Player player;
-            State seq;
-
-            const auto pp = seq.create_pattern();
-            auto &p = seq.get_pattern(pp.id);
-            for (int i = 0; i < p.height; i++) {
-                for (int j = 0; j < p.width; j++) {
-                    p.set_on(V2i(j, i));
-                }
-            }
-
-            std::ostringstream os;
-            for (int i = 0; i < p.height; i++) {
-                for (int j = 0; j < p.width; j++) {
-                    os << (p.is_on(V2i(j, i)) ? "X" : ".");
-                    p.set_on(V2i(j, i));
-                }
-                os << std::endl;
-            }
-            //std::cout << os.str() << std::endl;
-            //std::cout << seq.to_json_string() << std::endl;
-            double time;
-            double step_duration;
-            double window;
-            bool playing;
             TimeParams tp;
+            tp.step_duration = 1.0;
+            tp.window = 5.0;
             tp.time = 0.0;
-            tp.step_duration = 100.0;
-            tp.window = 2000.0;
             tp.playing = true;
-            player.start_pattern(Note{0, 0}, 0.0);
-            player.run([](uint8_t note, uint8_t velocity, double time) {
-                //   std::cout << "note=" << (int) note << " velocity=" << (int) velocity << " time=" << time << std::endl;
-            }, seq, tp);
-            // seq.get_pattern(0).set_cell_active(0, 0, true);
-        }
 
+            player.start_pattern(state, Note{(uint8_t) p.first_note, 0}, 0.0, tp);
+            player.start_pattern(state, Note{(uint8_t) 10, 0}, 0.0, tp);
+
+            player.run([](uint8_t note, double velocity, double time) {
+                std::cout << "note=" << (int) note << " velocity=" << velocity << " time=" << time << std::endl;
+            }, state, tp, 100.0);
+
+            std::cout << "END TEST\n";
+        }
     };
 }
 

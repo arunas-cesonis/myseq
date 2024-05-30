@@ -34,7 +34,7 @@ START_NAMESPACE_DISTRHO
         ImVec2 drag_started_mpos;
         ImVec2 offset;
         static constexpr int visible_rows = 16;
-
+        float cell_height = 30.0f;
 
         enum class Interaction {
             None,
@@ -54,6 +54,8 @@ START_NAMESPACE_DISTRHO
             const double scaleFactor = getScaleFactor();
 
             myseq::test_serialize();
+
+            offset = ImVec2(0.0f, -cell_height * (float) (visible_rows + 48));
 
             if (d_isEqual(scaleFactor, 1.0)) {
                 setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
@@ -255,6 +257,65 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        bool
+        grid_interaction(myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size, const ImVec2 &cell_size) {
+            auto ctrl_held = ImGui::GetIO().KeyCtrl;
+            auto mpos = ImGui::GetMousePos();
+            auto cell = calc_cell(p, grid_cpos, mpos, grid_size, cell_size);
+            auto valid_cell = cell.x >= 0 && cell.y >= 0;
+            bool dirty = false;
+            switch (interaction) {
+                case Interaction::DrawingCells: {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        if (valid_cell) {
+                            p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
+                            dirty = true;
+                        }
+                    } else {
+                        interaction = Interaction::None;
+                    }
+                    break;
+                }
+                case Interaction::AdjustingVelocity: {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        if (valid_cell) {
+                            auto delta_y = mpos.y - drag_started_mpos.y;
+                            auto new_vel = (uint8_t) clamp(
+                                    (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
+                            p.set_velocity(drag_started_cell, new_vel);
+                            dirty = true;
+                        }
+                    } else {
+                        interaction = Interaction::None;
+                    }
+                    break;
+                }
+                case Interaction::KeysSelect:
+                    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        interaction = Interaction::None;
+                    }
+                    break;
+
+                case Interaction::None:
+                    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                        if (valid_cell) {
+                            if (ctrl_held) {
+                                interaction = Interaction::AdjustingVelocity;
+                                drag_started_velocity = p.get_velocity(cell);
+                                drag_started_mpos = mpos;
+                                drag_started_cell = cell;
+                            } else {
+                                interaction = Interaction::DrawingCells;
+                                drag_started_velocity = p.get_velocity(cell);
+                                p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
+                                dirty = true;
+                            }
+                        }
+                    }
+            }
+            return dirty;
+        }
+
         void onImGuiDisplay() override {
             // ImGui::SetNextWindowPos(ImVec2(0, 0));
             //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
@@ -283,7 +344,7 @@ START_NAMESPACE_DISTRHO
                 const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
                 auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
-                auto cell_size = ImVec2(width / (float) p.width, 32.0);
+                auto cell_size = ImVec2(width / (float) p.width, 30.0f);
                 auto height = cell_size.y * (float) visible_rows;
                 const auto grid_size = ImVec2(width, height);
                 auto mpos = ImGui::GetMousePos();
@@ -293,57 +354,7 @@ START_NAMESPACE_DISTRHO
                 auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
                 auto strong_border_color = ImColor(
                         ImGui::GetStyleColorVec4(ImGuiCol_TableBorderStrong)).operator ImU32();
-                auto ctrl_held = ImGui::GetIO().KeyCtrl;
                 auto alt_held = ImGui::GetIO().KeyAlt;
-                switch (interaction) {
-                    case Interaction::DrawingCells: {
-                        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                            if (valid_cell) {
-                                p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
-                                dirty = true;
-                            }
-                        } else {
-                            interaction = Interaction::None;
-                        }
-                        break;
-                    }
-                    case Interaction::AdjustingVelocity: {
-                        if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                            if (valid_cell) {
-                                auto delta_y = mpos.y - drag_started_mpos.y;
-                                auto new_vel = (uint8_t) clamp(
-                                        (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
-                                p.set_velocity(drag_started_cell, new_vel);
-                                dirty = true;
-                            }
-                        } else {
-                            interaction = Interaction::None;
-                        }
-                        break;
-                    }
-                    case Interaction::KeysSelect:
-                        if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                            interaction = Interaction::None;
-                        }
-                        break;
-
-                    case Interaction::None:
-                        if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                            if (valid_cell) {
-                                if (ctrl_held) {
-                                    interaction = Interaction::AdjustingVelocity;
-                                    drag_started_velocity = p.get_velocity(cell);
-                                    drag_started_mpos = mpos;
-                                    drag_started_cell = cell;
-                                } else {
-                                    interaction = Interaction::DrawingCells;
-                                    drag_started_velocity = p.get_velocity(cell);
-                                    p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
-                                    dirty = true;
-                                }
-                            }
-                        }
-                }
 
                 const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
                 const auto corner2 = corner + ImVec2(width, height) / cell_size;
@@ -372,8 +383,8 @@ START_NAMESPACE_DISTRHO
                         draw_list->AddRectFilled(p_min, p_max, cell_color);
                         draw_list->AddRect(p_min, p_max, border_color);
 
-                        if (alt_held && loop_cell.x == 0) {
-                            auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
+                        auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
+                        if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
                             draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
                         } else if (vel > 0) {
                             draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
@@ -384,6 +395,7 @@ START_NAMESPACE_DISTRHO
                 draw_list->PopClipRect();
                 draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
                 ImGui::Dummy(ImVec2(width, height));
+
                 const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.width) - width));
                 const auto right = 0.0f;
                 const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.height) - height));
@@ -393,6 +405,8 @@ START_NAMESPACE_DISTRHO
                     offset.x = std::clamp(offset.x, left, right);
                     offset.y = std::clamp(offset.y, top, bottom);
                 }
+
+                dirty = dirty | grid_interaction(p, cpos, grid_size, cell_size);
 
                 ImGui::SameLine();
                 ImGui::BeginGroup();

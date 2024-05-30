@@ -27,6 +27,7 @@ START_NAMESPACE_DISTRHO
         MySeqPlugin()
                 : Plugin(0, 0, 1) // parameters, programs, states
         {
+            myseq::Test::test_player_run();
         }
 
     protected:
@@ -96,7 +97,7 @@ START_NAMESPACE_DISTRHO
             const myseq::TimeParams tp = {tc.global_tick(), tc.sixteenth_note_duration_in_ticks(),
                                           ((double) frames) / tc.frames_per_tick(), t.playing};
             if (tp.playing) {
-                d_debug("time: ticks=%f frames=%f", tc.global_tick(), tc.global_frame(), tp.playing);
+//                d_debug("time: ticks=%f frames=%f", tc.global_tick(), tc.global_frame(), tp.playing);
             }
 
             for (auto i = 0; i < (int) midiEventCount; i++) {
@@ -110,7 +111,7 @@ START_NAMESPACE_DISTRHO
                             (int) msg.value().note.note, (int) msg.value().velocity, ev.frame, time);
                     switch (v.type) {
                         case myseq::NoteMessage::Type::NoteOn:
-                            player.start_pattern(v.note, time);
+                            player.start_pattern(state, v.note, time, tp);
                             break;
                         case myseq::NoteMessage::Type::NoteOff:
                             player.stop_pattern(v.note, time);
@@ -133,7 +134,9 @@ START_NAMESPACE_DISTRHO
                 d_debug("msg=0x%02x note=0x%02x velocity=%0x time=%f", msg, note, velocity, time);
                 writeMidiEvent(evt);
             };
-            player.run(send, state, tp);
+
+            const auto frames_per_tick = tc.frames_per_tick();
+            player.run(send, state, tp, frames_per_tick);
             //params.setTimePosition(t);
         }
 
