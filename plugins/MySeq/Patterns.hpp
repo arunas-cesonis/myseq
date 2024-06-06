@@ -48,6 +48,8 @@ namespace myseq {
         uint8_t note;
         uint8_t channel;
 
+        Note(uint8_t note, uint8_t channel) : note(note), channel(channel) {}
+
         bool operator<(const Note &other) const {
             if (channel < other.channel) {
                 return true;

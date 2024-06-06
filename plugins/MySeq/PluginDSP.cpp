@@ -6,6 +6,7 @@
 
 
 #include <cassert>
+#include <map>
 #include "DistrhoPlugin.hpp"
 #include "Patterns.hpp"
 #include "Player.hpp"
@@ -23,6 +24,8 @@ START_NAMESPACE_DISTRHO
          */
         myseq::Player player;
         myseq::State state;
+        std::map<myseq::Note, double> live_notes;
+
 
         MySeqPlugin()
                 : Plugin(0, 0, 1) // parameters, programs, states
@@ -96,19 +99,12 @@ START_NAMESPACE_DISTRHO
 
             const myseq::TimeParams tp = {tc.global_tick(), tc.sixteenth_note_duration_in_ticks(),
                                           ((double) frames) / tc.frames_per_tick(), t.playing};
-            if (tp.playing) {
-//                d_debug("time: ticks=%f frames=%f", tc.global_tick(), tc.global_frame(), tp.playing);
-            }
-
             for (auto i = 0; i < (int) midiEventCount; i++) {
                 auto &ev = midiEvents[i];
                 std::optional<myseq::NoteMessage> msg = myseq::NoteMessage::parse(ev.data);
                 if (msg.has_value()) {
                     const auto &v = msg.value();
                     const auto time = tp.time + (ev.frame / tc.frames_per_tick());
-                    d_debug("MidiEvent: type=%s note=%02x velocity=%02x frame=%d time=%f",
-                            msg.value().type == myseq::NoteMessage::Type::NoteOn ? "NoteOn" : "NoteOff",
-                            (int) msg.value().note.note, (int) msg.value().velocity, ev.frame, time);
                     switch (v.type) {
                         case myseq::NoteMessage::Type::NoteOn:
                             player.start_pattern(state, v.note, time, tp);
@@ -124,6 +120,8 @@ START_NAMESPACE_DISTRHO
 
             auto send = [=](uint8_t note, uint8_t velocity, double time) {
                 const auto msg = velocity == 0 ? 0x80 : 0x90;
+                const auto note_on = msg == 0x90;
+                const auto absolute_time = tp.time + time;
                 const MidiEvent evt = {
                         static_cast<uint32_t>(time * tc.frames_per_tick()),
                         3, {
@@ -131,7 +129,17 @@ START_NAMESPACE_DISTRHO
                                 note, velocity, 0},
                         nullptr
                 };
-                d_debug("msg=0x%02x note=0x%02x velocity=%0x time=%f", msg, note, velocity, time);
+                myseq::Note key = myseq::Note(note, 0);
+
+                if (!note_on) {
+                    auto it = live_notes.find(key);
+                    if (live_notes.end() != it) {
+                        d_debug("NOTE PLAYED FOR %f", absolute_time - it->second);
+                    }
+                }
+                live_notes[key] = absolute_time;
+
+                d_debug("NOTE %s note=0x%02X velocity=%d time=%f", msg == 0x80 ? "OFF" : "ON", note, velocity, time);
                 writeMidiEvent(evt);
             };
 
@@ -141,13 +149,11 @@ START_NAMESPACE_DISTRHO
         }
 
         void setState(const char *key, const char *value) override {
-            // d_debug("PluginDSP: setState: key=%s pattern=[%s] value=<<EOF\n%s\nEOF]\n", key, seq.to_string().c_str(), value != nullptr ? value : "null");
             DISTRHO_SAFE_ASSERT(std::strcmp("pattern", key) == 0);
             state = myseq::State::from_json_string(value);
         }
 
         String getState(const char *key) const override {
-            // d_debug("PluginDSP: getState: key=%s pattern=[%s]\n", key, seq.to_string().c_str());
             DISTRHO_SAFE_ASSERT(std::strcmp("pattern", key) == 0);
             return String(state.to_json_string().c_str());
         }

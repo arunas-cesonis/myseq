@@ -99,15 +99,12 @@ namespace myseq {
         Player() = default;
 
         void start_pattern(const State &state, const Note &note, double start_time, const TimeParams &tp) {
-            d_debug("start pattern note=%02x start_time=%f", note.note, start_time);
-
             // 1. Find first pattern that has note in the range
             auto it = state.patterns.begin();
             while (it != state.patterns.end() && !(it->first_note <= note.note && note.note <= it->last_note)) {
                 ++it;
             }
             if (it == state.patterns.end()) {
-                d_debug("no pattern found for note=%02x", note.note);
                 return;
             }
             const auto total_notes = it->last_note - it->first_note + 1;
@@ -115,19 +112,16 @@ namespace myseq {
             const double pattern_duration = tp.step_duration * static_cast<double>(it->width);
             const auto start_time_offset = percent_from_start * pattern_duration;
             const auto new_start_time = start_time - start_time_offset;
-            d_debug("total_notes=%d percent_from_start=%f pattern_duration=%f start_time_offset=%f new_start_time=%f",
-                    total_notes, percent_from_start, pattern_duration, start_time_offset, new_start_time);
+            d_debug("START 0x%02x %f %f", note.note, new_start_time);
             active_patterns[note] = ActivePattern(it->id, new_start_time, 0.0, false);
         }
 
         void stop_pattern(const Note &note, double end_time) {
             auto &ap = active_patterns[note];
-            d_debug("end pattern note=%02x start_time=%f end_time=%f duration=%f", note.note, ap.start_time,
-                    ap.end_time,
-                    ap.end_time - ap.start_time);
             if (ap.finished) {
                 return;
             }
+            d_debug("STOP 0x%02x %f %f", note.note, end_time);
             ap.end_time = end_time;
             ap.finished = true;
         }
@@ -177,6 +171,7 @@ namespace myseq {
                                 // This check prevents 0-length notes being played when input note ends
                                 const auto note_length = note_end_time - (window_start + column_time);
                                 if (note_length > 0.0) {
+                                    d_debug("PLAY NOTE note=0x02%X note_length=%f", note_length);
                                     an.play_note(note_event, utils::row_index_to_midi_note(row_index),
                                                  v,
                                                  column_time,
