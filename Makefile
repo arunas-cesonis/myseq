@@ -16,8 +16,8 @@ ifeq ($(HAVE_OPENGL),true)
 endif
 
 plugins: dgl
-	$(MAKE) all -C plugins/ImGuiDemo
-	$(MAKE) all -C plugins/TextEditor
+#	$(MAKE) all -C plugins/ImGuiDemo
+#	$(MAKE) all -C plugins/TextEditor
 	$(MAKE) all -C plugins/MySeq
 
 ifneq ($(CROSS_COMPILING),true)
@@ -34,9 +34,9 @@ endif
 
 clean:
 	$(MAKE) clean -C dpf/dgl
-	$(MAKE) clean -C dpf/utils/lv2-ttl-generator
-	$(MAKE) clean -C plugins/ImGuiDemo
-	$(MAKE) clean -C plugins/TextEditor
+#	$(MAKE) clean -C dpf/utils/lv2-ttl-generator
+#	$(MAKE) clean -C plugins/ImGuiDemo
+#	$(MAKE) clean -C plugins/TextEditor
 	$(MAKE) clean -C plugins/MySeq
 	rm -rf bin build dpf-widgets/opengl/*.d dpf-widgets/opengl/*.o
 
