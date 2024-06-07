@@ -21,7 +21,6 @@ namespace myseq {
 
     struct ActiveNoteData {
         double end_time;
-        int emitter_id;
     };
 
     struct ActiveNotes {
@@ -29,30 +28,15 @@ namespace myseq {
 
         template<typename F>
         void
-        play_note(F note_event, uint8_t note, uint8_t velocity, double start_time, double end_time, int emitter_id) {
+        play_note(F note_event, uint8_t note, uint8_t velocity, double start_time, double end_time) {
             Note note1 = {note, 0};
             auto active = m.find(note1);
             if (active != m.end()) {
                 note_event(active->first.note, 0.0, start_time);
                 m.erase(active);
             }
-            m[note1] = {end_time, emitter_id};
+            m[note1] = {end_time};
             note_event(note, velocity, start_time);
-        }
-
-        template<typename F>
-        void handle_early_note_offs(F note_event, const TimeParams &tp, int emitter_id, double end_time) {
-            for (auto it = m.begin(); it != m.end();) {
-                if (it->second.emitter_id == emitter_id) {
-                    double t = std::min(end_time, it->second.end_time) - tp.time;
-                    if (t < tp.window) {
-                        note_event(it->first.note, 0.0, t);
-                        it = m.erase(it);
-                    } else {
-                        ++it;
-                    }
-                }
-            }
         }
 
         template<typename F>
@@ -175,15 +159,11 @@ namespace myseq {
                                     an.play_note(note_event, utils::row_index_to_midi_note(row_index),
                                                  v,
                                                  column_time,
-                                                 note_end_time,
-                                                 p.id
+                                                 note_end_time
                                     );
                                 }
                             }
                         }
-                    }
-                    if (ap.second.finished) {
-                        an.handle_early_note_offs(note_event, tp, p.id, ap.second.end_time);
                     }
                 }
                 an.handle_note_offs(note_event, tp);
