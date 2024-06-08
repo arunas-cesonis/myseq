@@ -135,7 +135,6 @@ namespace myseq {
                         prev_pattern_tick / tp.ticks_per_sixteenth_note));
                 const auto column_index = static_cast<int>(std::floor(pattern_tick / tp.ticks_per_sixteenth_note));
                 if (prev_column_index != column_index || prev_pattern_tick == pattern_tick) {
-                    d_debug("prev_column_index=%d column_index=%d", prev_column_index, column_index);
 
                     for (auto row_index = 0; row_index < p->height; row_index++) {
                         const auto velocity = p->get_velocity(V2i(column_index, row_index));
@@ -238,7 +237,6 @@ namespace myseq {
             const double pattern_duration = tp.step_duration * static_cast<double>(it->width);
             const auto start_time_offset = percent_from_start * pattern_duration;
             const auto new_start_time = start_time - start_time_offset;
-            d_debug("START 0x%02x %f %f", note.note, new_start_time);
             active_patterns[note] = ActivePattern(it->id, new_start_time, 0.0, false);
         }
 
@@ -247,7 +245,6 @@ namespace myseq {
             if (ap.finished) {
                 return;
             }
-            d_debug("STOP 0x%02x %f %f", note.note, end_time);
             ap.end_time = end_time;
             ap.finished = true;
         }
@@ -284,7 +281,6 @@ namespace myseq {
 
                     for (auto i = next_column; i <= last_column; i++) {
                         const auto column_index = i % p.width;
-                        d_debug("attempt playing step=%zu in pattern", column_index);
                         auto column_time = static_cast<double>(i) * tp.step_duration - pattern_time;
                         for (int row_index = 0; row_index < p.height; row_index++) {
                             const auto v = p.get_velocity(V2i(column_index, row_index));
@@ -297,7 +293,6 @@ namespace myseq {
                                 // This check prevents 0-length notes being played when input note ends
                                 const auto note_length = note_end_time - (window_start + column_time);
                                 if (note_length > 0.0) {
-                                    d_debug("PLAY NOTE note=0x02%X note_length=%f", note_length);
                                     an.play_note(note_event, utils::row_index_to_midi_note(row_index),
                                                  v,
                                                  column_time,

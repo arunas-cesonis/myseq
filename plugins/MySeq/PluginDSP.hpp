@@ -27,7 +27,6 @@ START_NAMESPACE_DISTRHO
         myseq::Player player;
         myseq::Player2 player2;
         myseq::State state;
-        std::map<myseq::Note, double> live_notes;
         TimePosition last_time_position;
 
         MySeqPlugin()
@@ -80,23 +79,8 @@ START_NAMESPACE_DISTRHO
             return d_cconst('d', 'T', 'x', 't');
         }
 
-        // ----------------------------------------------------------------------------------------------------------------
-        // Audio/MIDI Processing
-
-        /**
-           Run/process function for plugins without MIDI input.
-           @note Some parameters might be null if there are no audio inputs or outputs.
-         */
-
-        void run(const float **inputs, float **outputs, uint32_t frames,
-                 [[maybe_unused]] const MidiEvent *midiEvents, [[maybe_unused]] uint32_t midiEventCount) override {
-            // audio pass-through
-            if (inputs[0] != outputs[0])
-                std::memcpy(outputs[0], inputs[0], sizeof(float) * frames);
-
-            if (inputs[1] != outputs[1])
-                std::memcpy(outputs[1], inputs[1], sizeof(float) * frames);
-
+        void run_player1(uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
+                         [[maybe_unused]] uint32_t midiEventCount) {
             const TimePosition &t = getTimePosition();
             const myseq::TimePositionCalc tc(t, getSampleRate());
 
@@ -108,6 +92,7 @@ START_NAMESPACE_DISTRHO
                 if (msg.has_value()) {
                     const auto &v = msg.value();
                     const auto time = tp.time + (ev.frame / tc.frames_per_tick());
+                    const auto frame = static_cast<int>(time * tc.frames_per_tick());
                     switch (v.type) {
                         case myseq::NoteMessage::Type::NoteOn:
                             player.start_pattern(state, v.note, time, tp);
@@ -125,29 +110,70 @@ START_NAMESPACE_DISTRHO
                 const auto msg = velocity == 0 ? 0x80 : 0x90;
                 const auto note_on = msg == 0x90;
                 const auto absolute_time = tp.time + time;
+                const auto frame = static_cast<uint32_t>(time * tc.frames_per_tick());
                 const MidiEvent evt = {
-                        static_cast<uint32_t>(time * tc.frames_per_tick()),
+                        frame,
                         3, {
                                 (uint8_t) msg,
                                 note, velocity, 0},
                         nullptr
                 };
-                myseq::Note key = myseq::Note(note, 0);
-
-                if (!note_on) {
-                    auto it = live_notes.find(key);
-                    if (live_notes.end() != it) {
-                        d_debug("NOTE PLAYED FOR %f", absolute_time - it->second);
-                    }
-                }
-                live_notes[key] = absolute_time;
-
-                d_debug("NOTE %s note=0x%02X velocity=%d time=%f", msg == 0x80 ? "OFF" : "ON", note, velocity, time);
                 writeMidiEvent(evt);
             };
 
             const auto frames_per_tick = tc.frames_per_tick();
             player.run(send, state, tp, frames_per_tick);
+
+        }
+
+        void run_player2(uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
+                         [[maybe_unused]] uint32_t midiEventCount) {
+            const TimePosition &t = getTimePosition();
+            const myseq::TimePositionCalc tc(t, getSampleRate());
+            uint32_t midi_event = 0;
+            const auto global_tick = tc.global_tick();
+            const auto frames_per_tick = tc.frames_per_tick();
+            myseq::TimeParams2 tp;
+            tp.tick = 0.0;
+            tp.frame = 0;
+            tp.frames_per_tick = tc.frames_per_tick();
+            tp.ticks_per_sixteenth_note = tc.sixteenth_note_duration_in_ticks();
+            tp.playing = t.playing;
+            for (uint32_t x = 0; x < midiEventCount; x++) {
+                //d_debug("MIDI EVENT %d frame=%d %d %d %d %d", x, midiEvents[x].frame, midiEvents[x].data[0],
+                //       midiEvents[x].data[1], midiEvents[x].data[2], midiEvents[x].data[3]);
+            }
+            std::vector<MidiEvent> midi_events_out;
+            for (uint32_t frame = 0; frame < frames; frame++) {
+                std::vector<MidiEvent> midi_events_in;
+                while (midi_event < midiEventCount && midiEvents[midi_event].frame == frame) {
+                    midi_events_in.push_back(midiEvents[midi_event]);
+                    midi_event++;
+                }
+                tp.frame = (int) frame + (t.frame != 0 ? t.frame : (int) tc.global_frame());
+                tp.tick = global_tick + (double) frame / frames_per_tick;
+                player2.run(tp, state, midi_events_in, midi_events_out);
+            }
+            for (const auto ev: midi_events_out) {
+                writeMidiEvent(ev);
+            }
+
+        }
+
+        void run(const float **inputs, float **outputs, uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
+                 [[maybe_unused]] uint32_t midiEventCount) override {
+            // audio pass-through
+            if (inputs[0] != outputs[0])
+                std::memcpy(outputs[0], inputs[0], sizeof(float) * frames);
+
+            if (inputs[1] != outputs[1])
+                std::memcpy(outputs[1], inputs[1], sizeof(float) * frames);
+
+            run_player1(frames, midiEvents, midiEventCount);
+            // run_player2(frames, midiEvents, midiEventCount);
+            const TimePosition &t = getTimePosition();
+            last_time_position = t;
+
             // params.setTimePosition(t);
 
             // int fr = (int) std::round(tc.global_frame());
@@ -186,7 +212,6 @@ START_NAMESPACE_DISTRHO
             // } else {
             //     previous = -1;
             // }
-            last_time_position = t;
         }
 
         void setState(const char *key, const char *value) override {
