@@ -11,6 +11,60 @@
 #include "TimePositionCalc.hpp"
 
 namespace myseq {
+    struct TimeParams2 {
+        int frame;
+        double frames_per_tick;
+        double tick;
+        bool playing;
+    };
+
+    struct ActivePattern2 {
+        int pattern_id;
+        double start_tick;
+    };
+
+    struct Player2 {
+        std::map<Note, ActivePattern2> active_patterns;
+
+        void start_pattern(const State &state, const Note &note, const TimeParams2 &tp) {
+            const Pattern *pattern = state.first_pattern_with_note(note);
+            if (nullptr == pattern)
+                return;
+            //    d_debug("START %d %f", note.note, tp.tick);
+            active_patterns[note] = {pattern->id, tp.tick};
+        }
+
+        void stop_pattern(const State &state, const Note &note, const TimeParams2 &tp) {
+            const auto it = active_patterns.find(note);
+            if (it == active_patterns.end()) {
+                return;
+            }
+            //        d_debug("STOP %d %f %f", note.note, tp.tick, tp.tick - it->second.start_tick);
+            active_patterns.erase(it);
+        }
+
+        void run(const TimeParams2 &tp, const myseq::State &state, const std::vector<MidiEvent> &midi_in,
+                 std::vector<MidiEvent> &midi_out) {
+            for (const auto &e: midi_in) {
+                const auto opt_msg = NoteMessage::parse(e.data);
+                if (!opt_msg.has_value()) {
+                    continue;
+                }
+                const auto msg = opt_msg.value();
+                switch (msg.type) {
+                    case NoteMessage::Type::NoteOn:
+                        d_debug("NOTE ON note=%d frame=%d tick=%f", msg.note.note, tp.frame, tp.tick);
+                        start_pattern(state, msg.note, tp);
+                        break;
+                    case NoteMessage::Type::NoteOff:
+                        d_debug("NOTE OFF note=%d frame=%d tick=%f", msg.note.note, tp.frame, tp.tick);
+                        stop_pattern(state, msg.note, tp);
+                        break;
+                }
+            }
+        }
+
+    };
 
     struct TimeParams {
         double time;
@@ -22,6 +76,7 @@ namespace myseq {
     struct ActiveNoteData {
         double end_time;
     };
+
 
     struct ActiveNotes {
         std::map<Note, ActiveNoteData> m;

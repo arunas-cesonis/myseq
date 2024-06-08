@@ -7,9 +7,11 @@
 #include <iostream>
 #include <algorithm>
 #include "DistrhoUI.hpp"
+#include "PluginDSP.hpp"
 #include "Patterns.hpp"
 #include "Numbers.hpp"
 #include "Notes.hpp"
+#include "TimePositionCalc.hpp"
 
 START_NAMESPACE_DISTRHO
 
@@ -32,6 +34,7 @@ START_NAMESPACE_DISTRHO
         uint8_t drag_started_velocity = 0;
         V2i drag_started_cell;
         ImVec2 drag_started_mpos;
+        int count = 0;
         ImVec2 offset;
         static constexpr int visible_rows = 16;
         float cell_height = 30.0f;
@@ -490,6 +493,29 @@ START_NAMESPACE_DISTRHO
                 //p.last_note = note_select("Last note", p.last_note);
                 //ImGui::PopID();
 
+                const TimePosition &t = ((MySeqPlugin *) getPluginInstancePointer())->last_time_position;
+                const double sr = ((MySeqPlugin *) getPluginInstancePointer())->getSampleRate();
+                const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
+                const auto ptr = ((MySeqPlugin *) getPluginInstancePointer());
+                int i = 0;
+                for (const auto kv: ptr->player2.active_patterns) {
+                    ImGui::Text("%d: ap id=%d start=%f", i++, kv.second.pattern_id, kv.second.start_tick);
+                }
+
+                /*
+                ImGui::Text("t.frame=%llu", t.frame);
+                ImGui::Text("t.playing=%d", t.playing);
+                ImGui::Text("t.bbt.valid=%d", t.bbt.valid);
+                ImGui::Text("t.bbt.bar=%d", t.bbt.bar);
+                ImGui::Text("t.bbt.beat=%d", t.bbt.beat);
+                ImGui::Text("t.bbt.tick=%f", t.bbt.tick);
+                ImGui::Text("t.bbt.tick+t.barStartTick=%f", t.bbt.tick + t.bbt.barStartTick);
+                ImGui::Text("tc.global_tick()=%f", tc.global_tick());
+                ImGui::Text("t.bbt.barStartTick=%f", t.bbt.barStartTick);
+                ImGui::Text("t.bbt.beatsPerBar=%f", t.bbt.beatsPerBar);
+                ImGui::Text("t.bbt.beatType=%f", t.bbt.beatType);
+                ImGui::Text("t.bbt.ticksPerBeat=%f", t.bbt.ticksPerBeat);
+                ImGui::Text("t.bbt.beatsPerMinute=%f", t.bbt.beatsPerMinute);
                 ImGui::Text("publish count %d", publish_count);
                 ImGui::Text("cell %d %d", cell.x, cell.y);
                 ImGui::Text("cpos %f %f", cpos.x, cpos.y);
@@ -502,6 +528,7 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("corner=%f %f", corner.x, corner.y);
                 ImGui::Text("valid_cell=%d", valid_cell);
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
+                */
             }
 
             ImGui::End();

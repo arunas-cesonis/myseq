@@ -24,7 +24,8 @@ namespace myseq {
         }
 
         [[nodiscard]] double global_beat() const {
-            return (t.bbt.bar - 1.0) * beats_per_bar() + t.bbt.beat - 1.0 + (t.bbt.tick / t.bbt.ticksPerBeat);
+            return beats_per_bar() * (double) (t.bbt.bar - 1) + (double) (t.bbt.beat - 1) +
+                   t.bbt.tick / t.bbt.ticksPerBeat;
         }
 
         [[nodiscard]] double sixteenth_note_duration_in_seconds() const {
@@ -48,7 +49,10 @@ namespace myseq {
         }
 
         [[nodiscard]] double global_tick() const {
-            return global_beat() * t.bbt.ticksPerBeat;
+            const auto bar = t.bbt.bar - 1;
+            const auto beat = (double) bar * (double) t.bbt.beatsPerBar + t.bbt.beat - 1.0;
+            const auto tick = beat * t.bbt.ticksPerBeat + t.bbt.tick;
+            return tick;
         }
 
         [[nodiscard]] double global_sixteenth_note() const {

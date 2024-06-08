@@ -142,6 +142,19 @@ namespace myseq {
     struct State {
         std::vector<Pattern> patterns;
 
+        [[nodiscard]] const Pattern *first_pattern_with_note(Note note) const {
+            auto it = patterns.begin();
+            while (it != patterns.end() && !(it->first_note <= note.note && note.note <= it->last_note)) {
+                ++it;
+            }
+            if (it == patterns.end()) {
+                return nullptr;
+            } else {
+                auto b = &*it;
+                return b;
+            }
+        }
+
         [[nodiscard]] int next_unused_id() {
             int max = -1;
             for (auto &p: patterns) {
