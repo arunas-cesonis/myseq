@@ -496,6 +496,8 @@ START_NAMESPACE_DISTRHO
                 const TimePosition &t = ((MySeqPlugin *) getPluginInstancePointer())->last_time_position;
                 const double sr = ((MySeqPlugin *) getPluginInstancePointer())->getSampleRate();
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
+                ImGui::Text("tick=%f", tc.global_tick());
+
                 const auto ptr = ((MySeqPlugin *) getPluginInstancePointer());
                 int i = 0;
                 for (const auto kv: ptr->player2.active_patterns) {

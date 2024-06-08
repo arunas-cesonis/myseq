@@ -177,6 +177,7 @@ namespace myseq {
             return patterns.size();
         }
 
+        // Its safe to delete as player will stop playing missing IDs
         void delete_pattern(const int id) {
             for (auto it = patterns.begin(); it != patterns.end(); it++) {
                 if (it->id == id) {
@@ -197,6 +198,15 @@ namespace myseq {
 
         Pattern &get_selected_pattern() {
             return get_pattern(selected);
+        }
+
+        const Pattern *get_pattern_ptr(int id) const {
+            for (auto &p: patterns) {
+                if (p.id == id) {
+                    return &p;
+                }
+            }
+            return nullptr;
         }
 
         Pattern &get_pattern(int id) {
