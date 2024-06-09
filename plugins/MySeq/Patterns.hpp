@@ -48,6 +48,8 @@ namespace myseq {
         uint8_t note;
         uint8_t channel;
 
+        Note() : note(0), channel(0) {}
+
         Note(uint8_t note, uint8_t channel) : note(note), channel(channel) {}
 
         bool operator<(const Note &other) const {
@@ -200,7 +202,7 @@ namespace myseq {
             return get_pattern(selected);
         }
 
-        const Pattern *get_pattern_ptr(int id) const {
+        const Pattern *et_pattern_ptr(int id) const {
             for (auto &p: patterns) {
                 if (p.id == id) {
                     return &p;

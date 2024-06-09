@@ -28,6 +28,7 @@ START_NAMESPACE_DISTRHO
         myseq::Player2 player2;
         myseq::State state;
         TimePosition last_time_position;
+        int iteration = 0;
 
         MySeqPlugin()
                 : Plugin(0, 0, 1) // parameters, programs, states
@@ -83,9 +84,8 @@ START_NAMESPACE_DISTRHO
                          [[maybe_unused]] uint32_t midiEventCount) {
             const TimePosition &t = getTimePosition();
             const myseq::TimePositionCalc tc(t, getSampleRate());
-
             const myseq::TimeParams tp = {tc.global_tick(), tc.sixteenth_note_duration_in_ticks(),
-                                          ((double) frames) / tc.frames_per_tick(), t.playing};
+                                          ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
             for (auto i = 0; i < (int) midiEventCount; i++) {
                 auto &ev = midiEvents[i];
                 std::optional<myseq::NoteMessage> msg = myseq::NoteMessage::parse(ev.data);
@@ -95,9 +95,11 @@ START_NAMESPACE_DISTRHO
                     const auto frame = static_cast<int>(time * tc.frames_per_tick());
                     switch (v.type) {
                         case myseq::NoteMessage::Type::NoteOn:
+                            d_debug(" IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
                             player.start_pattern(state, v.note, time, tp);
                             break;
                         case myseq::NoteMessage::Type::NoteOff:
+                            d_debug(" IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
                             player.stop_pattern(v.note, time);
                             break;
                         default:
@@ -118,12 +120,13 @@ START_NAMESPACE_DISTRHO
                                 note, velocity, 0},
                         nullptr
                 };
+                const auto k = msg == 0x90 ? "ON " : "OFF";
+                d_debug("OUT: NOTE %s %3d %d:%d", k, note, iteration, evt.frame);
                 writeMidiEvent(evt);
             };
 
             const auto frames_per_tick = tc.frames_per_tick();
             player.run(send, state, tp, frames_per_tick);
-
         }
 
         void run_player2(uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
@@ -212,6 +215,7 @@ START_NAMESPACE_DISTRHO
             // } else {
             //     previous = -1;
             // }
+            iteration++;
         }
 
         void setState(const char *key, const char *value) override {
