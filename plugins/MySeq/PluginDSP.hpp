@@ -25,7 +25,6 @@ START_NAMESPACE_DISTRHO
            You must set all parameter values to their defaults, matching ParameterRanges::def.
          */
         myseq::Player player;
-        myseq::Player2 player2;
         myseq::State state;
         TimePosition last_time_position;
         int iteration = 0;
@@ -127,40 +126,6 @@ START_NAMESPACE_DISTRHO
 
             const auto frames_per_tick = tc.frames_per_tick();
             player.run(send, state, tp, frames_per_tick);
-        }
-
-        void run_player2(uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
-                         [[maybe_unused]] uint32_t midiEventCount) {
-            const TimePosition &t = getTimePosition();
-            const myseq::TimePositionCalc tc(t, getSampleRate());
-            uint32_t midi_event = 0;
-            const auto global_tick = tc.global_tick();
-            const auto frames_per_tick = tc.frames_per_tick();
-            myseq::TimeParams2 tp;
-            tp.tick = 0.0;
-            tp.frame = 0;
-            tp.frames_per_tick = tc.frames_per_tick();
-            tp.ticks_per_sixteenth_note = tc.sixteenth_note_duration_in_ticks();
-            tp.playing = t.playing;
-            for (uint32_t x = 0; x < midiEventCount; x++) {
-                //d_debug("MIDI EVENT %d frame=%d %d %d %d %d", x, midiEvents[x].frame, midiEvents[x].data[0],
-                //       midiEvents[x].data[1], midiEvents[x].data[2], midiEvents[x].data[3]);
-            }
-            std::vector<MidiEvent> midi_events_out;
-            for (uint32_t frame = 0; frame < frames; frame++) {
-                std::vector<MidiEvent> midi_events_in;
-                while (midi_event < midiEventCount && midiEvents[midi_event].frame == frame) {
-                    midi_events_in.push_back(midiEvents[midi_event]);
-                    midi_event++;
-                }
-                tp.frame = (int) frame + (t.frame != 0 ? t.frame : (int) tc.global_frame());
-                tp.tick = global_tick + (double) frame / frames_per_tick;
-                player2.run(tp, state, midi_events_in, midi_events_out);
-            }
-            for (const auto ev: midi_events_out) {
-                writeMidiEvent(ev);
-            }
-
         }
 
         void run(const float **inputs, float **outputs, uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,

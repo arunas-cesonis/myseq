@@ -498,12 +498,6 @@ START_NAMESPACE_DISTRHO
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
                 ImGui::Text("tick=%f", tc.global_tick());
 
-                const auto ptr = ((MySeqPlugin *) getPluginInstancePointer());
-                int i = 0;
-                for (const auto kv: ptr->player2.active_patterns) {
-                    ImGui::Text("%d: ap id=%d start=%f", i++, kv.second.pattern_id, kv.second.start_tick);
-                }
-
                 /*
                 ImGui::Text("t.frame=%llu", t.frame);
                 ImGui::Text("t.playing=%d", t.playing);

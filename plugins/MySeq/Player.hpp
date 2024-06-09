@@ -11,13 +11,6 @@
 #include "TimePositionCalc.hpp"
 
 namespace myseq {
-    struct TimeParams2 {
-        uint32_t frame;
-        double frames_per_tick;
-        double ticks_per_sixteenth_note;
-        double tick;
-        bool playing;
-    };
     struct TimeParams {
         double time;
         double step_duration;
@@ -26,11 +19,6 @@ namespace myseq {
         int iteration;
     };
 
-
-    struct ActivePattern2 {
-        int pattern_id;
-        double start_tick;
-    };
 
     struct ActiveNoteData {
         double end_time;
@@ -78,132 +66,6 @@ namespace myseq {
         std::map<Note, double> vector;
 
     };
-
-    struct Player2 {
-        std::map<Note, ActivePattern2> active_patterns;
-        std::map<Note, double> active_notes;
-        double previous_tick = -1.0;
-
-        void start_pattern(const State &state, const Note &note, const TimeParams2 &tp) {
-            const Pattern *pattern = state.first_pattern_with_note(note);
-            if (nullptr == pattern)
-                return;
-            //    d_debug("START %d %f", note.note, tp.tick);
-            active_patterns[note] = {pattern->id, tp.tick};
-        }
-
-        void stop_pattern(const State &state, const Note &note, const TimeParams2 &tp) {
-            const auto it = active_patterns.find(note);
-            if (it == active_patterns.end()) {
-                return;
-            }
-            //        d_debug("STOP %d %f %f", note.note, tp.tick, tp.tick - it->second.start_tick);
-            active_patterns.erase(it);
-        }
-
-        void start_stop(const State &state, const TimeParams2 &tp, const std::vector<MidiEvent> &midi_in,
-                        std::vector<MidiEvent> &midi_out) {
-            for (const auto &e: midi_in) {
-                const auto opt_msg = NoteMessage::parse(e.data);
-                if (!opt_msg.has_value()) {
-                    continue;
-                }
-                const auto msg = opt_msg.value();
-                switch (msg.type) {
-                    case NoteMessage::Type::NoteOn:
-                        start_pattern(state, msg.note, tp);
-                        break;
-                    case NoteMessage::Type::NoteOff:
-                        stop_pattern(state, msg.note, tp);
-                        break;
-                }
-            }
-        }
-
-        void run_active_patterns(const TimeParams2 &tp, const myseq::State &state, std::vector<MidiEvent> &midi_out) {
-            /*
-            for (auto it = active_patterns.begin(); it != active_patterns.end();) {
-                const auto &ap = it->second;
-                const auto p = state.get_pattern_ptr(ap.pattern_id);
-                if (p == nullptr) {
-                    it = active_patterns.erase(it);
-                    continue;
-                }
-
-                const auto pattern_duration = tp.ticks_per_sixteenth_note * (double) p->width;
-                const auto prev_pattern_tick = std::fmod(previous_tick - ap.start_tick, pattern_duration);
-                const auto pattern_tick = std::fmod(tp.tick - ap.start_tick, pattern_duration);
-                const auto prev_column_index = static_cast<int>(std::floor(
-                        prev_pattern_tick / tp.ticks_per_sixteenth_note));
-                const auto column_index = static_cast<int>(std::floor(pattern_tick / tp.ticks_per_sixteenth_note));
-                if (prev_column_index != column_index || prev_pattern_tick == pattern_tick) {
-
-                    for (auto row_index = 0; row_index < p->height; row_index++) {
-                        const auto velocity = p->get_velocity(V2i(column_index, row_index));
-                        if (0 != velocity) {
-                            const Note note = {static_cast<uint8_t>(row_index), 0};
-                            const MidiEvent evt = {
-                                    tp.frame,
-                                    3, {
-                                            0x90,
-                                            note.note,
-                                            static_cast<uint8_t>(velocity),
-                                            0},
-                                    nullptr
-                            };
-                            active_notes[note] = tp.tick + tp.ticks_per_sixteenth_note;
-                            midi_out.push_back(evt);
-                        }
-                    }
-                }
-                ++it;
-            }
-             */
-        }
-
-        void handle_note_offs(const TimeParams2 &tp, std::vector<MidiEvent> &midi_out) {
-            for (auto it = active_notes.begin(); it != active_notes.end();) {
-                const auto &note = it->first;
-                const auto end_time = it->second;
-                if (tp.tick >= end_time) {
-                    const MidiEvent evt = {
-                            tp.frame,
-                            3, {
-                                    0x80,
-                                    note.note,
-                                    0,
-                                    0},
-                            nullptr
-                    };
-                    midi_out.push_back(evt);
-                    it = active_notes.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-        }
-
-        void run(const TimeParams2 &tp, const myseq::State &state, const std::vector<MidiEvent> &midi_in,
-                 std::vector<MidiEvent> &midi_out) {
-            if (!tp.playing) {
-                active_patterns.clear();
-                previous_tick = -1.0;
-                return;
-            }
-
-            if (previous_tick == -1.0) {
-                previous_tick = tp.tick;
-            }
-
-            start_stop(state, tp, midi_in, midi_out);
-            run_active_patterns(tp, state, midi_out);
-            handle_note_offs(tp, midi_out);
-
-
-            previous_tick = tp.tick;
-        }
-    };
-
 
     struct ActivePattern {
         int pattern_id{};
