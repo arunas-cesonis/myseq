@@ -134,10 +134,6 @@ namespace myseq {
                         it = active_patterns.erase(it);
                         continue;
                     } else {
-                        if (ap.second.finished) {
-                            d_debug("FINISHED iteration=%d note=%d end_time=%f", tp.iteration, ap.second.note.note,
-                                    ap.second.end_time);
-                        }
                         ++it;
                     }
 
@@ -166,18 +162,18 @@ namespace myseq {
                                                                               : step_end_time;
 
                                 // This check prevents 0-length notes being played when input note ends
+                                // exactly at the end of the step and just before the beggining of the next step
+                                // I believe this is caused by either note starting time calculation or
+                                // pattern end time calculation being incorrect (or both)
                                 const auto note_length = note_end_time - (window_start + column_time);
                                 if (note_length > (ap.second.finished ? 1.0 : 0.0)) {
-                                    //if (ap.second.finished) {
-                                    //    d_debug("FINISHED NOTE ON iteration=%d note=%d time=%f note_length=%f",
-                                    //            tp.iteration,
-                                    //            ap.second.note.note,
-                                    //            tp.time + column_time, note_length);
-                                    //} else {
-
-                                    //}
-                                    //d_debug("PLAY NOTE note=%d time=%f note_length=%f",
-                                    //        ap.second.note.note, tp.time + column_time, note_length);
+                                    if (ap.second.finished) {
+                                        d_debug("FINISHED NOTE ON iteration=%d note=%d time=%f note_length=%f",
+                                                tp.iteration,
+                                                ap.second.note.note,
+                                                tp.time + column_time,
+                                                note_length);
+                                    }
                                     an.play_note(note_event, utils::row_index_to_midi_note(row_index),
                                                  v,
                                                  column_time,
