@@ -165,6 +165,8 @@ namespace myseq {
                                 // exactly at the end of the step and just before the beggining of the next step
                                 // I believe this is caused by either note starting time calculation or
                                 // pattern end time calculation being incorrect (or both)
+                                // 1.0 here represents 1 MIDI tick which is supposed to be the smallest possible note length
+                                // however it seems that <1.0 is also a valid note length (at least in REAPER)
                                 const auto note_length = note_end_time - (window_start + column_time);
                                 if (note_length > (ap.second.finished ? 1.0 : 0.0)) {
                                     if (ap.second.finished) {

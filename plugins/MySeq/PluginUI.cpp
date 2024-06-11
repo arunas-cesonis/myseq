@@ -1,10 +1,3 @@
-/*
- * Text Editor example
- * Copyright (C) 2023 Filipe Coelho <falktx@falktx.com>
- * SPDX-License-Identifier: ISC
- */
-
-#include <iostream>
 #include <algorithm>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
@@ -36,7 +29,8 @@ START_NAMESPACE_DISTRHO
         ImVec2 drag_started_mpos;
         int count = 0;
         ImVec2 offset;
-        static constexpr int visible_rows = 16;
+        static constexpr int visible_rows = 20;
+        float cell_width = 40.0f;
         float cell_height = 30.0f;
 
         enum class Interaction {
@@ -58,7 +52,7 @@ START_NAMESPACE_DISTRHO
 
             myseq::test_serialize();
 
-            offset = ImVec2(0.0f, -cell_height * (float) (visible_rows + 48));
+            offset = ImVec2(0.0f, -cell_height * (float) (visible_rows + 72));
 
             if (d_isEqual(scaleFactor, 1.0)) {
                 setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
@@ -324,7 +318,9 @@ START_NAMESPACE_DISTRHO
             //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
 
             int window_flags =
-                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings;
+                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
+                    | ImGuiWindowFlags_NoScrollWithMouse;
+
             const ImGuiViewport *viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->Pos);
             ImGui::SetNextWindowSize(viewport->Size);
@@ -347,7 +343,7 @@ START_NAMESPACE_DISTRHO
                 const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
                 auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
-                auto cell_size = ImVec2(width / (float) p.width, 30.0f);
+                auto cell_size = ImVec2(cell_width, cell_height);
                 auto height = cell_size.y * (float) visible_rows;
                 const auto grid_size = ImVec2(width, height);
                 auto mpos = ImGui::GetMousePos();

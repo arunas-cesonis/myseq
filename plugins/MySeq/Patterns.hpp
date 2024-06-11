@@ -202,15 +202,6 @@ namespace myseq {
             return get_pattern(selected);
         }
 
-        const Pattern *et_pattern_ptr(int id) const {
-            for (auto &p: patterns) {
-                if (p.id == id) {
-                    return &p;
-                }
-            }
-            return nullptr;
-        }
-
         Pattern &get_pattern(int id) {
             for (auto &p: patterns) {
                 if (p.id == id) {

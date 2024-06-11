@@ -91,7 +91,6 @@ START_NAMESPACE_DISTRHO
                 if (msg.has_value()) {
                     const auto &v = msg.value();
                     const auto time = tp.time + (ev.frame / tc.frames_per_tick());
-                    const auto frame = static_cast<int>(time * tc.frames_per_tick());
                     switch (v.type) {
                         case myseq::NoteMessage::Type::NoteOn:
                             d_debug(" IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
