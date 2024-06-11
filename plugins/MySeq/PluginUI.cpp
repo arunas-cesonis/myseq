@@ -31,7 +31,7 @@ START_NAMESPACE_DISTRHO
         ImVec2 offset;
         static constexpr int visible_rows = 20;
         float cell_width = 40.0f;
-        float cell_height = 30.0f;
+        float cell_height = 20.0f;
 
         enum class Interaction {
             None,
@@ -299,6 +299,7 @@ START_NAMESPACE_DISTRHO
                             if (ctrl_held) {
                                 interaction = Interaction::AdjustingVelocity;
                                 drag_started_velocity = p.get_velocity(cell);
+                                drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
                             } else {
@@ -329,6 +330,7 @@ START_NAMESPACE_DISTRHO
             bool dirty = false;
             bool create = false;
             bool delete_ = false;
+            bool duplicate = false;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             if (state.num_patterns() == 0) {
                 state.selected = state.create_pattern().id;
@@ -343,7 +345,7 @@ START_NAMESPACE_DISTRHO
                 const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
                 auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
-                auto cell_size = ImVec2(cell_width, cell_height);
+                auto cell_size = ImVec2(width / (float) p.width, cell_height);
                 auto height = cell_size.y * (float) visible_rows;
                 const auto grid_size = ImVec2(width, height);
                 auto mpos = ImGui::GetMousePos();
@@ -418,14 +420,13 @@ START_NAMESPACE_DISTRHO
                     dirty = true;
                     delete_ = true;
                 }
+                ImGui::SameLine();
+                if (ImGui::Button("Duplicate")) {
+                    dirty = true;
+                    duplicate = true;
+                }
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-                // static ImGuiTableFlags flags =
-                //         ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable
-                //         | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti
-                //         | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_NoBordersInBody
-                //         | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY
-                //         | ImGuiTableFlags_SizingFixedFit;
                 if (ImGui::BeginTable("##patterns_table", 4, patterns_table_flags)) {
                     ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
                     ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
@@ -493,6 +494,7 @@ START_NAMESPACE_DISTRHO
                 const double sr = ((MySeqPlugin *) getPluginInstancePointer())->getSampleRate();
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
                 ImGui::Text("tick=%f", tc.global_tick());
+                ImGui::Text("interaction=%s", interaction_to_string(interaction));
 
                 /*
                 ImGui::Text("t.frame=%llu", t.frame);
@@ -529,6 +531,9 @@ START_NAMESPACE_DISTRHO
             }
             if (delete_) {
                 state.delete_pattern(state.selected);
+            }
+            if (duplicate) {
+                state.selected = state.duplicate_pattern(state.selected).id;
             }
             if (dirty) {
                 publish();

@@ -185,7 +185,12 @@ namespace myseq {
                 if (it->id == id) {
                     it = patterns.erase(it);
                     if (it == patterns.end()) {
-                        selected = -1;
+                        if (!patterns.empty()) {
+                            it--;
+                            selected = it->id;
+                        } else {
+                            selected = -1;
+                        }
                     } else {
                         selected = it->id;
                     }
@@ -196,6 +201,12 @@ namespace myseq {
 
         Pattern &create_pattern() {
             return patterns.emplace_back(next_unused_id());
+        }
+
+        Pattern &duplicate_pattern(int id) {
+            auto pattern = get_pattern(id);
+            pattern.id = next_unused_id();
+            return patterns.emplace_back(pattern);
         }
 
         Pattern &get_selected_pattern() {
