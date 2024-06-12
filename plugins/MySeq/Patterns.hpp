@@ -97,19 +97,23 @@ namespace myseq {
 
         explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             data.resize(width * height);
+            d_debug("HERE 2 size=%d", (int) data.size());
         }
 
         Pattern(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
                                                                                 first_note(first_note),
                                                                                 last_note(last_note) {
             data.resize(width * height);
+            d_debug("HERE 2 size=%d", (int) data.size());
         }
 
         Cell &get_cell(const V2i &v) {
+            assert(v.x >= 0 && v.x < width && v.y >= 0 && v.y < height);
             return data[v.x * height + v.y];
         }
 
         [[nodiscard]] const Cell &get_cell(const V2i &v) const {
+            assert(v.x >= 0 && v.x < width && v.y >= 0 && v.y < height);
             return data[v.x * height + v.y];
         }
 
@@ -134,8 +138,16 @@ namespace myseq {
         }
 
         void resize_width(int new_width) {
-            data.resize(new_width * height);
-            width = new_width;
+            if (new_width <= width) {
+                width = new_width;
+            } else {
+                auto new_data = std::valarray<Cell>(new_width * height);
+                for (int i = 0; i < width * height; i++) {
+                    new_data[i] = data[i];
+                }
+                data = new_data;
+                width = new_width;
+            }
         }
     };
 
