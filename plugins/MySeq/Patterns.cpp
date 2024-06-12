@@ -23,7 +23,9 @@ namespace myseq {
             auto cobj = carr[i].GetObject();
             std::size_t cell_index = cobj["i"].GetInt();
             auto velocity = static_cast<uint8_t>(cobj["v"].GetInt());
+            bool selected = cobj.HasMember("s") ? static_cast<uint8_t>(cobj["s"].GetBool()) : false;
             p.data[cell_index].velocity = velocity;
+            p.data[cell_index].selected = selected;
         }
         return p;
     }
@@ -83,6 +85,9 @@ namespace myseq {
                 auto ob = o.GetObject();
                 ob.AddMember("i", (int) i, allocator)
                         .AddMember("v", (int) cell.velocity, allocator);
+                if (cell.selected) {
+                    ob.AddMember("s", (bool) cell.selected, allocator);
+                }
                 data_arr.PushBack(o, allocator);
             }
         }

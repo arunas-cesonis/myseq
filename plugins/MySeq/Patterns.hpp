@@ -42,6 +42,7 @@ namespace myseq {
 
     struct Cell {
         uint8_t velocity;
+        bool selected;
     };
 
     struct Note {
@@ -121,6 +122,10 @@ namespace myseq {
             get_cell(v).velocity = velocity;
         }
 
+        void set_selected(const V2i &v, bool selected) {
+            get_cell(v).selected = selected;
+        }
+
         void set_on(const V2i &v) {
             get_cell(v).velocity = 127;
         }
@@ -135,6 +140,10 @@ namespace myseq {
 
         [[nodiscard]] uint8_t get_velocity(const V2i &v) const {
             return get_cell(v).velocity;
+        }
+
+        [[nodiscard]] bool get_selected(const V2i &v) const {
+            return get_cell(v).selected;
         }
 
         void resize_width(int new_width) {

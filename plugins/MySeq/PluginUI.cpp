@@ -20,6 +20,15 @@ START_NAMESPACE_DISTRHO
         return std::min(std::max(value, min), max);
     }
 
+    ImColor clamp_color(ImColor color) {
+        return {
+                clamp(color.Value.x, 0.0f, 1.0f),
+                clamp(color.Value.y, 0.0f, 1.0f),
+                clamp(color.Value.z, 0.0f, 1.0f),
+                clamp(color.Value.w, 0.0f, 1.0f)
+        };
+    }
+
 
     class MySeqUI : public UI {
     public:
@@ -37,7 +46,8 @@ START_NAMESPACE_DISTRHO
             None,
             DrawingCells,
             AdjustingVelocity,
-            KeysSelect
+            KeysSelect,
+
         };
         Interaction interaction = Interaction::None;
 
@@ -257,6 +267,7 @@ START_NAMESPACE_DISTRHO
         bool
         grid_interaction(myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size, const ImVec2 &cell_size) {
             auto ctrl_held = ImGui::GetIO().KeyCtrl;
+            auto shift_held = ImGui::GetIO().KeyShift;
             auto mpos = ImGui::GetMousePos();
             auto cell = calc_cell(p, grid_cpos, mpos, grid_size, cell_size);
             auto valid_cell = cell.x >= 0 && cell.y >= 0;
@@ -302,6 +313,9 @@ START_NAMESPACE_DISTRHO
                                 drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
+                            } else if (shift_held) {
+                                p.set_selected(cell, !p.get_selected(cell));
+                                dirty = true;
                             } else {
                                 interaction = Interaction::DrawingCells;
                                 drag_started_velocity = p.get_velocity(cell);
@@ -343,6 +357,8 @@ START_NAMESPACE_DISTRHO
                 float width = ImGui::CalcItemWidth();
                 const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
                 const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
+                const auto selected_cell = clamp_color(
+                        ImColor(active_cell.Value + ImColor(0x20, 0x20, 0x20).Value));
                 const auto hovered_color = ImColor(IM_COL32_WHITE);
                 auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
                 auto cell_size = ImVec2(width / (float) p.width, cell_height);
@@ -375,13 +391,16 @@ START_NAMESPACE_DISTRHO
                         auto p_max = p_min + ImVec2(cell_size.x, cell_size.y) - cell_padding_xy;
                         auto vel = p.get_velocity(loop_cell);
                         auto velocity_fade = ((float) vel) / 127.0f;
-                        auto cell_color = ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
+                        auto selected_fade = p.get_selected(loop_cell) ? 0.2f : 0.0f;
+                        auto cell_color1 = ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
+                        auto cell_color2 = ImColor(
+                                ImLerp(cell_color1.Value, ImColor(IM_COL32_WHITE).Value, selected_fade));
                         //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
-                        auto fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
-                        cell_color.Value.x *= fade;
-                        cell_color.Value.y *= fade;
-                        cell_color.Value.z *= fade;
-                        draw_list->AddRectFilled(p_min, p_max, cell_color);
+                        auto quarter_fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
+                        cell_color2.Value.x *= quarter_fade;
+                        cell_color2.Value.y *= quarter_fade;
+                        cell_color2.Value.z *= quarter_fade;
+                        draw_list->AddRectFilled(p_min, p_max, cell_color2);
                         draw_list->AddRect(p_min, p_max, border_color);
 
                         auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
