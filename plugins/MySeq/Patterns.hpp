@@ -126,6 +126,11 @@ namespace myseq {
             get_cell(v).selected = selected;
         }
 
+        void deselect_all() {
+            for (auto &c: data)
+                c.selected = false;
+        }
+
         void set_on(const V2i &v) {
             get_cell(v).velocity = 127;
         }

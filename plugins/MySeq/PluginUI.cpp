@@ -29,6 +29,25 @@ START_NAMESPACE_DISTRHO
         };
     }
 
+    ImColor mono_color(ImColor color) {
+        auto avg = (color.Value.x + color.Value.y + color.Value.z) / 3.0f;
+        return {
+                avg,
+                avg,
+                avg,
+                color.Value.w
+        };
+    }
+
+    ImColor invert_color(ImColor color) {
+        return {
+                1.0f - color.Value.x,
+                1.0f - color.Value.y,
+                1.0f - color.Value.z,
+                color.Value.w
+        };
+    }
+
 
     class MySeqUI : public UI {
     public:
@@ -47,7 +66,6 @@ START_NAMESPACE_DISTRHO
             DrawingCells,
             AdjustingVelocity,
             KeysSelect,
-
         };
         Interaction interaction = Interaction::None;
 
@@ -322,6 +340,9 @@ START_NAMESPACE_DISTRHO
                                 p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
                                 dirty = true;
                             }
+                        } else if (shift_held) {
+                            p.deselect_all();
+                            dirty = true;
                         }
                     }
             }
@@ -369,6 +390,7 @@ START_NAMESPACE_DISTRHO
                 auto valid_cell = cell.x >= 0 && cell.y >= 0;
                 auto *draw_list = ImGui::GetWindowDrawList();
                 auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
+                auto border_color_sel = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_TextSelectedBg)).operator ImU32();
                 auto strong_border_color = ImColor(
                         ImGui::GetStyleColorVec4(ImGuiCol_TableBorderStrong)).operator ImU32();
                 auto alt_held = ImGui::GetIO().KeyAlt;
@@ -390,23 +412,24 @@ START_NAMESPACE_DISTRHO
                                      offset + cpos;
                         auto p_max = p_min + ImVec2(cell_size.x, cell_size.y) - cell_padding_xy;
                         auto vel = p.get_velocity(loop_cell);
+                        auto sel = p.get_selected(loop_cell);
                         auto velocity_fade = ((float) vel) / 127.0f;
-                        auto selected_fade = p.get_selected(loop_cell) ? 0.2f : 0.0f;
-                        auto cell_color1 = ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
-                        auto cell_color2 = ImColor(
-                                ImLerp(cell_color1.Value, ImColor(IM_COL32_WHITE).Value, selected_fade));
+                        auto cell_color1 =
+                                ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
                         //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
                         auto quarter_fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
-                        cell_color2.Value.x *= quarter_fade;
-                        cell_color2.Value.y *= quarter_fade;
-                        cell_color2.Value.z *= quarter_fade;
-                        draw_list->AddRectFilled(p_min, p_max, cell_color2);
+                        cell_color1.Value.x *= quarter_fade;
+                        cell_color1.Value.y *= quarter_fade;
+                        cell_color1.Value.z *= quarter_fade;
+                        draw_list->AddRectFilled(p_min, p_max,
+                                                 sel ? invert_color(cell_color1) : cell_color1);
+                        // draw_list->AddRect(p_min, p_max, sel ? border_color_sel : border_color);
                         draw_list->AddRect(p_min, p_max, border_color);
 
                         auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                         if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
                             draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
-                        } else if (vel > 0) {
+                        } else if (vel > 0 && sel) {
                             draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
                         }
                     }
