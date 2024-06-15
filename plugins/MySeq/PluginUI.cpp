@@ -343,9 +343,9 @@ START_NAMESPACE_DISTRHO
                                 drag_started_velocity = p.get_velocity(cell);
                                 drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
                                 drag_started_velocity_vec.clear();
-                                for (const auto &v: p.get_selected_cells()) {
-                                    drag_started_velocity_vec.push_back({v, p.get_velocity(v)});
-                                }
+                                p.each_elected_cell([=](const myseq::Cell &c, const V2i &v) {
+                                    drag_started_velocity_vec.push_back({v, c.velocity});
+                                });
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
                             } else if (shift_held) {
@@ -566,7 +566,11 @@ START_NAMESPACE_DISTRHO
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
                 ImGui::Text("tick=%f", tc.global_tick());
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
-                ImGui::Text("selected_cells.size()=%lu", p.get_selected_cells().size());
+                int selected_cells_count = 0;
+                p.each_elected_cell([&selected_cells_count](const myseq::Cell &c, const V2i &v) {
+                    selected_cells_count += 1;
+                });
+                ImGui::Text("selected_cells count=%d", selected_cells_count);
                 ImGui::Text("publish_count=%d", publish_count);
 
                 /*

@@ -96,7 +96,6 @@ namespace myseq {
 
     struct Pattern {
         std::valarray<Cell> data;
-        std::vector<V2i> selected_cells;
         int id;
         int width;
         int height;
@@ -121,8 +120,14 @@ namespace myseq {
             return V2i(x, y);
         }
 
-        const std::vector<V2i> &get_selected_cells() const {
-            return selected_cells;
+        template<typename F>
+        void each_elected_cell(F f) const {
+            for (int i = 0; i < data.size(); i++) {
+                const auto &cell = data[i];
+                if (cell.selected > 0) {
+                    f(cell, index_to_coords(i));
+                }
+            }
         }
 
         Cell &get_cell(const V2i &v) {
@@ -140,16 +145,7 @@ namespace myseq {
         }
 
         void set_selected(const V2i &v, bool selected) {
-            bool already = get_cell(v).selected;
-            if (already != selected) {
-                get_cell(v).selected = selected;
-                if (selected) {
-                    selected_cells.push_back(v);
-                } else {
-                    auto it = std::find(selected_cells.begin(), selected_cells.end(), v);
-                    selected_cells.erase(it);
-                }
-            }
+            get_cell(v).selected = selected;
         }
 
         void deselect_all() {

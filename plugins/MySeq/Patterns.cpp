@@ -24,9 +24,10 @@ namespace myseq {
             int cell_index = cobj["i"].GetInt();
             auto velocity = static_cast<uint8_t>(cobj["v"].GetInt());
             bool selected = cobj.HasMember("s") ? static_cast<uint8_t>(cobj["s"].GetBool()) : false;
-            p.data[cell_index].velocity = velocity;
+            auto coords = p.index_to_coords(cell_index);
+            p.set_velocity(coords, velocity);
             if (selected) {
-                p.set_selected(p.index_to_coords(cell_index), true);
+                p.set_selected(coords, true);
             }
         }
         return p;
