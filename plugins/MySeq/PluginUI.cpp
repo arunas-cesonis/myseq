@@ -69,6 +69,7 @@ START_NAMESPACE_DISTRHO
             DrawingCells,
             AdjustingVelocity,
             KeysSelect,
+            DragSelectingCells,
         };
         Interaction interaction = Interaction::None;
 
@@ -119,6 +120,8 @@ START_NAMESPACE_DISTRHO
                     return "AdjustingVelocity";
                 case Interaction::KeysSelect:
                     return "KeysSelect";
+                case Interaction::DragSelectingCells:
+                    return "DragSelectingCells";
             }
             return "Unknown";
         }
@@ -334,6 +337,18 @@ START_NAMESPACE_DISTRHO
                         interaction = Interaction::None;
                     }
                     break;
+                case Interaction::DragSelectingCells:
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && shift_held) {
+                        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                            if (valid_cell) {
+                                p.set_selected(cell, !drag_started_selected);
+                                dirty = true;
+                            }
+                        }
+                    } else {
+                        interaction = Interaction::None;
+                    }
+                    break;
 
                 case Interaction::None:
                     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -351,6 +366,7 @@ START_NAMESPACE_DISTRHO
                             } else if (shift_held) {
                                 drag_started_selected = p.get_selected(cell);
                                 p.set_selected(cell, !drag_started_selected);
+                                interaction = Interaction::DragSelectingCells;
                                 dirty = true;
                             } else {
                                 interaction = Interaction::DrawingCells;
@@ -361,16 +377,6 @@ START_NAMESPACE_DISTRHO
                         } else if (shift_held) {
                             p.deselect_all();
                             dirty = true;
-                        }
-                    }
-                    if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                        if (valid_cell) {
-                            if (shift_held) {
-                                p.set_selected(cell, !drag_started_selected);
-                                dirty = true;
-                            } else {
-
-                            }
                         }
                     }
 

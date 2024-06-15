@@ -153,6 +153,12 @@ namespace myseq {
                 c.selected = false;
         }
 
+        void move_cell(const V2i &from, const V2i &to) {
+            auto cell = get_cell(from);
+            get_cell(to) = cell;
+            get_cell(from) = Cell{0, false};
+        }
+
         void set_on(const V2i &v) {
             get_cell(v).velocity = 127;
         }
