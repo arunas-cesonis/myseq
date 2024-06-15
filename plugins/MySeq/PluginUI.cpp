@@ -94,7 +94,7 @@ START_NAMESPACE_DISTRHO
                 setSize(width, height);
             }
 
-            gen_array_test();
+            gen_array_tests();
         }
 
         int publish_count = 0;
@@ -364,9 +364,13 @@ START_NAMESPACE_DISTRHO
                         }
                     }
                     if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                        if (shift_held && valid_cell) {
-                            p.set_selected(cell, !drag_started_selected);
-                            dirty = true;
+                        if (valid_cell) {
+                            if (shift_held) {
+                                p.set_selected(cell, !drag_started_selected);
+                                dirty = true;
+                            } else {
+
+                            }
                         }
                     }
 
@@ -447,7 +451,7 @@ START_NAMESPACE_DISTRHO
                         cell_color1.Value.y *= quarter_fade;
                         cell_color1.Value.z *= quarter_fade;
                         draw_list->AddRectFilled(p_min, p_max,
-                                                 sel ? invert_color(cell_color1) : cell_color1);
+                                                 sel ? mono_color(cell_color1) : cell_color1);
                         // draw_list->AddRect(p_min, p_max, sel ? border_color_sel : border_color);
                         draw_list->AddRect(p_min, p_max, border_color);
 

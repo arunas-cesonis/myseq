@@ -4,7 +4,51 @@
 
 #include "GenArray.hpp"
 
-void gen_array_test() {
+void gen_array_test_rand() {
+    std::srand(0);
+    GenArray<int> arr;
+    std::vector<Id> ids;
+    const int count = 1000;
+    for (int i = 0; i < count; i++) {
+        ids.push_back(arr.push(i));
+    }
+    bool removed[count] = {};
+    std::vector<Id> removed_ids;
+    std::vector<Id> remaining_ids;
+    for (auto id: ids) {
+        if (std::rand() % 2) {
+            const auto value = arr.get(id);
+            arr.remove(id);
+            removed[value] = true;
+            removed_ids.push_back(id);
+        } else {
+            remaining_ids.push_back(id);
+        }
+    }
+    int actual_remaining = 0;
+    for (const auto x: arr) {
+        assert(!removed[x]);
+        actual_remaining++;
+    }
+    assert(actual_remaining == remaining_ids.size());
+    assert(arr.size() == remaining_ids.size());
+    for (auto id: removed_ids) {
+        assert(!arr.exist(id));
+    }
+    for (auto id: remaining_ids) {
+        assert(arr.exist(id));
+        printf("%d\n", arr.get(id));
+    }
+    for (int i = 0; i < count; i++) {
+        if (removed[i]) {
+            arr.push(i);
+            removed[i] = false;
+        }
+    }
+    assert(arr.size() == count);
+}
+
+void gen_array_test_basic() {
     GenArray<int> test;
     auto a = test.push(1);
     auto b = test.push(2);
@@ -48,4 +92,9 @@ void gen_array_test() {
     assert(tmp.find(100) != tmp.end());
     assert(tmp.size() == 3);
 
+}
+
+void gen_array_tests() {
+    gen_array_test_basic();
+    gen_array_test_rand();
 }

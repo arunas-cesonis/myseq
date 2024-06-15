@@ -24,6 +24,7 @@ struct GenArray {
 
     GenArray() = default;
 
+    // deleted for debugging, there is no reason for copying to not work
     GenArray(const GenArray<T> &other) = delete;
 
     void operator=(const GenArray<T> &other) = delete;
@@ -97,6 +98,17 @@ struct GenArray {
         return iterator(this, data.size());
     }
 
+    [[nodiscard]] std::size_t size() const {
+        const auto ret = data.size() - free.size();
+#ifdef DEBUG
+        const auto actual = std::count_if(data.begin(), data.end(), [](const std::optional<T> &x) {
+            return x.has_value();
+        });
+        assert(ret == actual);
+#endif // DEBUG
+        return ret;
+    }
+
     [[nodiscard]] bool exist(const Id &id) const {
         return id.index >= 0 && id.index < data.size()
                && data[id.index].has_value()
@@ -151,6 +163,6 @@ struct GenArray {
 
 };
 
-void gen_array_test();
+void gen_array_tests();
 
 #endif //MY_PLUGINS_GENARRAY_HPP
