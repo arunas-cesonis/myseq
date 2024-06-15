@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <set>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
 #include "Patterns.hpp"
@@ -53,7 +54,9 @@ START_NAMESPACE_DISTRHO
     public:
         myseq::State state;
         uint8_t drag_started_velocity = 0;
+        std::vector<std::pair<V2i, uint8_t>> drag_started_velocity_vec;
         V2i drag_started_cell;
+        bool drag_started_selected = false;
         ImVec2 drag_started_mpos;
         int count = 0;
         ImVec2 offset;
@@ -90,6 +93,8 @@ START_NAMESPACE_DISTRHO
                 setGeometryConstraints(width, height);
                 setSize(width, height);
             }
+
+            gen_array_test();
         }
 
         int publish_count = 0;
@@ -309,6 +314,14 @@ START_NAMESPACE_DISTRHO
                             auto new_vel = (uint8_t) clamp(
                                     (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
                             p.set_velocity(drag_started_cell, new_vel);
+                            for (auto &pair: drag_started_velocity_vec) {
+                                auto new_vel2 = (uint8_t) clamp(
+                                        (int) std::round((float) pair.second - (float) delta_y), 0, 127);
+                                if (!p.get_selected(pair.first)) {
+                                    p.set_selected(pair.first, true);
+                                }
+                                p.set_velocity(pair.first, new_vel2);
+                            }
                             dirty = true;
                         }
                     } else {
@@ -329,10 +342,15 @@ START_NAMESPACE_DISTRHO
                                 interaction = Interaction::AdjustingVelocity;
                                 drag_started_velocity = p.get_velocity(cell);
                                 drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
+                                drag_started_velocity_vec.clear();
+                                for (const auto &v: p.get_selected_cells()) {
+                                    drag_started_velocity_vec.push_back({v, p.get_velocity(v)});
+                                }
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
                             } else if (shift_held) {
-                                p.set_selected(cell, !p.get_selected(cell));
+                                drag_started_selected = p.get_selected(cell);
+                                p.set_selected(cell, !drag_started_selected);
                                 dirty = true;
                             } else {
                                 interaction = Interaction::DrawingCells;
@@ -345,6 +363,13 @@ START_NAMESPACE_DISTRHO
                             dirty = true;
                         }
                     }
+                    if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                        if (shift_held && valid_cell) {
+                            p.set_selected(cell, !drag_started_selected);
+                            dirty = true;
+                        }
+                    }
+
             }
             return dirty;
         }
@@ -537,6 +562,8 @@ START_NAMESPACE_DISTRHO
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
                 ImGui::Text("tick=%f", tc.global_tick());
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
+                ImGui::Text("selected_cells.size()=%lu", p.get_selected_cells().size());
+                ImGui::Text("publish_count=%d", publish_count);
 
                 /*
                 ImGui::Text("t.frame=%llu", t.frame);

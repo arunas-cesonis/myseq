@@ -17,6 +17,7 @@ FILES_DSP = \
 FILES_UI = \
 	PluginUI.cpp \
 	Patterns.cpp \
+	GenArray.cpp \
 	../../dpf-widgets/opengl/DearImGui.cpp
 
 # --------------------------------------------------------------

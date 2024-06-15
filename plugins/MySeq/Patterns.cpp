@@ -21,11 +21,13 @@ namespace myseq {
         Pattern p(id, width, height, first_note, last_note);
         for (int i = 0; i < carr.Size(); i++) {
             auto cobj = carr[i].GetObject();
-            std::size_t cell_index = cobj["i"].GetInt();
+            int cell_index = cobj["i"].GetInt();
             auto velocity = static_cast<uint8_t>(cobj["v"].GetInt());
             bool selected = cobj.HasMember("s") ? static_cast<uint8_t>(cobj["s"].GetBool()) : false;
             p.data[cell_index].velocity = velocity;
-            p.data[cell_index].selected = selected;
+            if (selected) {
+                p.set_selected(p.index_to_coords(cell_index), true);
+            }
         }
         return p;
     }

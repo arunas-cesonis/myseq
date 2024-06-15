@@ -15,6 +15,7 @@
 #include "src/DistrhoDefines.h"
 
 #include "TimePositionCalc.hpp"
+#include "GenArray.hpp"
 
 namespace myseq {
 
@@ -88,8 +89,14 @@ namespace myseq {
         }
     };
 
+
+    struct Pattern2 {
+        std::vector<Cell> cells;
+    };
+
     struct Pattern {
         std::valarray<Cell> data;
+        std::vector<V2i> selected_cells;
         int id;
         int width;
         int height;
@@ -108,6 +115,16 @@ namespace myseq {
             d_debug("HERE 2 size=%d", (int) data.size());
         }
 
+        [[nodiscard]] V2i index_to_coords(int index) const {
+            const auto x = index / height;
+            const auto y = index % height;
+            return V2i(x, y);
+        }
+
+        const std::vector<V2i> &get_selected_cells() const {
+            return selected_cells;
+        }
+
         Cell &get_cell(const V2i &v) {
             assert(v.x >= 0 && v.x < width && v.y >= 0 && v.y < height);
             return data[v.x * height + v.y];
@@ -123,7 +140,16 @@ namespace myseq {
         }
 
         void set_selected(const V2i &v, bool selected) {
-            get_cell(v).selected = selected;
+            bool already = get_cell(v).selected;
+            if (already != selected) {
+                get_cell(v).selected = selected;
+                if (selected) {
+                    selected_cells.push_back(v);
+                } else {
+                    auto it = std::find(selected_cells.begin(), selected_cells.end(), v);
+                    selected_cells.erase(it);
+                }
+            }
         }
 
         void deselect_all() {
