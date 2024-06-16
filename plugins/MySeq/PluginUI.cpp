@@ -55,7 +55,9 @@ START_NAMESPACE_DISTRHO
         myseq::State state;
         uint8_t drag_started_velocity = 0;
         std::vector<std::pair<V2i, uint8_t>> drag_started_velocity_vec;
+        std::vector<V2i> moving_cells_vec;
         V2i drag_started_cell;
+        V2i previous_move_offset;
         bool drag_started_selected = false;
         ImVec2 drag_started_mpos;
         int count = 0;

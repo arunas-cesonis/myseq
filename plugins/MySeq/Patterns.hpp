@@ -19,6 +19,9 @@
 
 namespace myseq {
 
+
+    struct Opaque;
+
     void test_serialize();
 
     namespace utils {
@@ -188,6 +191,26 @@ namespace myseq {
             return get_cell(v).velocity;
         }
 
+        [[nodiscard]] int get_last_note() const {
+            return last_note;
+        }
+
+        [[nodiscard]] int get_id() const {
+            return id;
+        }
+
+        [[nodiscard]] int get_first_note() const {
+            return first_note;
+        }
+
+        [[nodiscard]] int get_width() const {
+            return width;
+        }
+
+        [[nodiscard]] int get_height() const {
+            return height;
+        }
+
         [[nodiscard]] bool get_selected(const V2i &v) const {
             return get_cell(v).selected;
         }
@@ -205,7 +228,6 @@ namespace myseq {
             }
         }
     };
-    */
 
     struct Opaque;
 
