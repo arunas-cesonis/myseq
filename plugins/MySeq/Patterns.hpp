@@ -110,8 +110,9 @@ namespace myseq {
         std::vector<Cell> cells;
     };
 
-    struct Pattern {
+    class Pattern {
         std::valarray<Cell> data;
+    public:
         int id;
         int width;
         int height;
@@ -133,12 +134,26 @@ namespace myseq {
         [[nodiscard]] V2i index_to_coords(int index) const {
             const auto x = index / height;
             const auto y = index % height;
-            return V2i(x, y);
+            return {x, y};
+        }
+
+        [[nodiscard]] int coords_to_index(const V2i &v) const {
+            return v.x * height + v.y;
+        }
+
+        template<typename F>
+        void each_active_cell(F f) const {
+            for (int i = 0; i < (int) data.size(); i++) {
+                const auto &cell = data[i];
+                if (cell.velocity > 0) {
+                    f(cell, index_to_coords(i));
+                }
+            }
         }
 
         template<typename F>
         void each_selected_cell(F f) const {
-            for (int i = 0; i < data.size(); i++) {
+            for (int i = 0; i < (int) data.size(); i++) {
                 const auto &cell = data[i];
                 if (cell.selected > 0) {
                     f(cell, index_to_coords(i));

@@ -81,19 +81,16 @@ namespace myseq {
                 .AddMember("last_note", pattern.last_note, allocator);
         //d.GetObject().AddMember("data", height, d.GetAllocator());
         rapidjson::Value data_arr(rapidjson::kArrayType);
-        for (int i = 0; i < pattern.data.size(); i++) {
-            const auto &cell = pattern.data[i];
-            if (cell.velocity > 0) {
-                rapidjson::Value o(rapidjson::kObjectType);
-                auto ob = o.GetObject();
-                ob.AddMember("i", (int) i, allocator)
-                        .AddMember("v", (int) cell.velocity, allocator);
-                if (cell.selected) {
-                    ob.AddMember("s", (bool) cell.selected, allocator);
-                }
-                data_arr.PushBack(o, allocator);
+        pattern.each_active_cell([&](const Cell &cell, const V2i &coords) {
+            rapidjson::Value o(rapidjson::kObjectType);
+            auto ob = o.GetObject();
+            ob.AddMember("i", pattern.coords_to_index(coords), allocator)
+                    .AddMember("v", (int) cell.velocity, allocator);
+            if (cell.selected) {
+                ob.AddMember("s", (bool) cell.selected, allocator);
             }
-        }
+            data_arr.PushBack(o, allocator);
+        });
         pobj.GetObject().AddMember("data", data_arr, allocator);
         return pobj;
     }

@@ -106,7 +106,7 @@ START_NAMESPACE_DISTRHO
                 }
             }
 
-            auto send = [=](uint8_t note, uint8_t velocity, double time) {
+            auto send = [&](uint8_t note, uint8_t velocity, double time) {
                 const auto msg = velocity == 0 ? 0x80 : 0x90;
                 const auto note_on = msg == 0x90;
                 const auto absolute_time = tp.time + time;

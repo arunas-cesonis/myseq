@@ -401,7 +401,7 @@ START_NAMESPACE_DISTRHO
                                 drag_started_velocity = p.get_velocity(cell);
                                 drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
                                 drag_started_velocity_vec.clear();
-                                p.each_selected_cell([=](const myseq::Cell &c, const V2i &v) {
+                                p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
                                     drag_started_velocity_vec.push_back({v, c.velocity});
                                 });
                                 drag_started_mpos = mpos;
@@ -416,7 +416,7 @@ START_NAMESPACE_DISTRHO
                                 drag_started_cell = cell;
                                 previous_move_offset = V2i(0, 0);
                                 moving_cells_vec.clear();
-                                p.each_selected_cell([=](const myseq::Cell &c, const V2i &v) {
+                                p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
                                     moving_cells_vec.push_back(v);
                                 });
                                 interaction = Interaction::MovingCells;
@@ -507,7 +507,7 @@ START_NAMESPACE_DISTRHO
                         auto quarter_fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
 
                         if (interaction == Interaction::MovingCells) {
-                            if (std::find_if(moving_cells_vec.begin(), moving_cells_vec.end(), [=](const V2i &v) {
+                            if (std::find_if(moving_cells_vec.begin(), moving_cells_vec.end(), [&](const V2i &v) {
                                 return v + previous_move_offset == loop_cell;
                             }) != moving_cells_vec.end()) {
                                 cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
