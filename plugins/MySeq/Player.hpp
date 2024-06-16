@@ -97,18 +97,19 @@ namespace myseq {
         void start_pattern(const State &state, const Note &note, double start_time, const TimeParams &tp) {
             // 1. Find first pattern that has note in the range
             auto it = state.patterns.begin();
-            while (it != state.patterns.end() && !(it->first_note <= note.note && note.note <= it->last_note)) {
+            while (it != state.patterns.end() &&
+                   !(it->get_first_note() <= note.note && note.note <= it->get_last_note())) {
                 ++it;
             }
             if (it == state.patterns.end()) {
                 return;
             }
-            const auto total_notes = it->last_note - it->first_note + 1;
-            const auto percent_from_start = (float) (note.note - it->first_note) / (float) total_notes;
-            const double pattern_duration = tp.step_duration * static_cast<double>(it->width);
+            const auto total_notes = it->get_last_note() - it->get_first_note() + 1;
+            const auto percent_from_start = (float) (note.note - it->get_first_note()) / (float) total_notes;
+            const double pattern_duration = tp.step_duration * static_cast<double>(it->get_width());
             const auto start_time_offset = percent_from_start * pattern_duration;
             const auto new_start_time = start_time - start_time_offset;
-            active_patterns[note] = ActivePattern(it->id, new_start_time, 0.0, false, note);
+            active_patterns[note] = ActivePattern(it->get_id(), new_start_time, 0.0, false, note);
         }
 
         void stop_pattern(const Note &note, double end_time) {

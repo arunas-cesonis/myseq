@@ -4,6 +4,22 @@
 
 #include "GenArray.hpp"
 
+void gen_array_test_mutate() {
+    GenArray<std::optional<int>> arr;
+    std::vector<Id> ids;
+    const int count = 1000;
+    for (int i = 0; i < count; i++) {
+        ids.push_back(arr.push({i}));
+    }
+    for (auto &x: arr) {
+        *x *= 2;
+
+    }
+    for (int i = 0; i < count; i++) {
+        assert(arr.get(ids[i]) == i * 2);
+    }
+}
+
 void gen_array_test_rand() {
     std::srand(0);
     GenArray<int> arr;
@@ -37,7 +53,6 @@ void gen_array_test_rand() {
     }
     for (auto id: remaining_ids) {
         assert(arr.exist(id));
-        printf("%d\n", arr.get(id));
     }
     for (int i = 0; i < count; i++) {
         if (removed[i]) {
@@ -46,6 +61,37 @@ void gen_array_test_rand() {
         }
     }
     assert(arr.size() == count);
+}
+
+void gen_array_test_more_elements() {
+    std::chrono::high_resolution_clock clock;
+    auto start = clock.now();
+    const int count = 1000 * 1000;
+    std::srand(0);
+    std::vector<Id> ids;
+    GenArray<int> arr;
+    for (int i = 0; i < count; i++) {
+        ids.push_back(arr.push(i));
+    }
+    for (int i = count - 1; i >= 1; i--) {
+        int j = std::rand() % (i + 1);
+        const auto a = ids[i];
+        ids[i] = ids[j];
+        ids[j] = a;
+    }
+    std::vector<int> removed;
+    for (int i = 0; i < count / 2; i++) {
+        removed.push_back(arr.get(ids[i]));
+        arr.remove(ids[i]);
+        ids.pop_back();
+    }
+    assert(arr.size() == count - count / 2);
+    for (int i = 0; i < count / 2; i++) {
+        arr.push(removed[i]);
+    }
+    assert(arr.size() == count);
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(clock.now() - start).count();
+    //printf("Elapsed: %ld\n", elapsed);
 }
 
 void gen_array_test_basic() {
@@ -95,6 +141,8 @@ void gen_array_test_basic() {
 }
 
 void gen_array_tests() {
+    gen_array_test_more_elements();
     gen_array_test_basic();
     gen_array_test_rand();
+    gen_array_test_mutate();
 }

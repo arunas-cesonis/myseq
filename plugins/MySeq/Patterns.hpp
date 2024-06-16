@@ -39,6 +39,19 @@ namespace myseq {
         bool operator==(const V2i &other) const {
             return x == other.x && y == other.y;
         }
+
+        bool operator!=(const V2i &other) const {
+            return x != other.x || y != other.y;
+        }
+
+        V2i operator-(const V2i &other) const {
+            return {x - other.x, y - other.y};
+        }
+
+        V2i operator+(const V2i &other) const {
+            return {x + other.x, y + other.y};
+        }
+
     };
 
     struct Cell {
@@ -121,7 +134,7 @@ namespace myseq {
         }
 
         template<typename F>
-        void each_elected_cell(F f) const {
+        void each_selected_cell(F f) const {
             for (int i = 0; i < data.size(); i++) {
                 const auto &cell = data[i];
                 if (cell.selected > 0) {
@@ -192,6 +205,7 @@ namespace myseq {
             }
         }
     };
+    */
 
     struct Opaque;
 

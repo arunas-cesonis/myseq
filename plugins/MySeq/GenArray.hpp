@@ -22,12 +22,61 @@ struct GenArray {
     std::vector<int> data_gen;
     std::vector<int> free;
 
-    GenArray() = default;
+    //GenArray() = default;
 
     // deleted for debugging, there is no reason for copying to not work
-    GenArray(const GenArray<T> &other) = delete;
+    //GenArray(const GenArray<T> &other) = delete;
 
-    void operator=(const GenArray<T> &other) = delete;
+    //void operator=(const GenArray<T> &other) = delete;
+
+    class const_iterator {
+        const GenArray<T> *ga;
+    protected:
+        int index;
+
+        void seek_valid() {
+            while (index < ga->data.size() && !ga->data[index].has_value()) {
+                index++;
+            }
+        }
+
+    public:
+        explicit const_iterator(const GenArray<T> *ga, int _index = 0) : ga(ga), index(_index) {
+            seek_valid();
+        }
+
+        const_iterator &operator++() {
+            index++;
+            seek_valid();
+            return *this;
+        }
+
+        const_iterator operator++(int) {
+            iterator result = *this;
+            ++(*this);
+            return result;
+        }
+
+        bool operator==(const const_iterator &other) const {
+            return ga == other.ga && index == other.index;
+        }
+
+        bool operator!=(const const_iterator &other) const {
+            return !(*this == other);
+        }
+
+        const T &operator*() const {
+            return ga->data[index].value();
+        }
+
+        using difference_type = int;
+        using value_type = T;
+        using pointer = T *;
+        using reference = T &;
+        using iterator_category = std::forward_iterator_tag;
+
+        friend class GenArray<T>;
+    };
 
     class iterator {
         GenArray<T> *ga;
@@ -88,6 +137,14 @@ struct GenArray {
         if (index >= data.size() || index < 0 || !data[index].has_value()) {
             throw std::runtime_error("Invalid id");
         }
+    }
+
+    const_iterator cbegin() const {
+        return const_iterator(this, 0);
+    }
+
+    const_iterator cend() const {
+        return const_iterator(this, (int) data.size());
     }
 
     iterator begin() {
