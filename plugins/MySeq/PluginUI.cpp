@@ -372,6 +372,17 @@ START_NAMESPACE_DISTRHO
                             }
                         }
                     } else {
+                        if (previous_move_offset != V2i(0, 0)) {
+                            std::vector<myseq::Cell> removed;
+                            for (const auto &v: moving_cells_vec) {
+                                removed.push_back(p.get_cell(v));
+                                p.clear_cell(v);
+                            }
+                            for (std::size_t i = 0; i < moving_cells_vec.size(); i++) {
+                                p.set_cell(moving_cells_vec[i] + previous_move_offset, removed[i]);
+                            }
+                            dirty = true;
+                        }
                         interaction = Interaction::None;
                     }
                     break;

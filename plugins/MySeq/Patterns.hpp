@@ -179,6 +179,16 @@ namespace myseq {
             get_cell(v).selected = selected;
         }
 
+        void set_cell(const V2i &v, Cell &c) {
+            get_cell(v) = c;
+        }
+
+        void clear_cell(const V2i &v) {
+            auto &c = get_cell(v);
+            c.velocity = 0;
+            c.selected = false;
+        }
+
         void deselect_all() {
             for (auto &c: data)
                 c.selected = false;
