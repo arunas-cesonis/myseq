@@ -4,6 +4,29 @@
 
 #include "GenArray.hpp"
 
+
+void gen_array_test_const_iterator() {
+    struct Test {
+        const GenArray<int> arr;
+
+        void check(const int count) const {
+            int j = 0;
+            for (auto const &x: arr) {
+                assert(j++ == x);
+            }
+            assert(count == j);
+        }
+    };
+    GenArray<int> arr;
+    std::vector<Id> ids;
+    const int count = 1000;
+    for (int i = 0; i < count; i++) {
+        ids.push_back(arr.push(i));
+    }
+    Test test = {arr};
+    test.check(count);
+}
+
 void gen_array_test_mutate() {
     GenArray<std::optional<int>> arr;
     std::vector<Id> ids;
@@ -145,4 +168,5 @@ void gen_array_tests() {
     gen_array_test_basic();
     gen_array_test_rand();
     gen_array_test_mutate();
+    gen_array_test_const_iterator();
 }

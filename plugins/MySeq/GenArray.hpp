@@ -15,7 +15,6 @@ struct Id {
     int gen;
 };
 
-
 template<typename T>
 struct GenArray {
     std::vector<std::optional<T>> data;
@@ -139,11 +138,11 @@ struct GenArray {
         }
     }
 
-    const_iterator cbegin() const {
+    const_iterator begin() const {
         return const_iterator(this, 0);
     }
 
-    const_iterator cend() const {
+    const_iterator end() const {
         return const_iterator(this, (int) data.size());
     }
 
