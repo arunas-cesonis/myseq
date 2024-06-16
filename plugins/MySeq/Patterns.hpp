@@ -163,12 +163,12 @@ namespace myseq {
 
         Cell &get_cell(const V2i &v) {
             assert(v.x >= 0 && v.x < width && v.y >= 0 && v.y < height);
-            return data[v.x * height + v.y];
+            return data[coords_to_index(v)];
         }
 
         [[nodiscard]] const Cell &get_cell(const V2i &v) const {
             assert(v.x >= 0 && v.x < width && v.y >= 0 && v.y < height);
-            return data[v.x * height + v.y];
+            return data[coords_to_index(v)];
         }
 
         void set_velocity(const V2i &v, uint8_t velocity) {
