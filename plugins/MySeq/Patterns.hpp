@@ -252,16 +252,13 @@ namespace myseq {
         }
 
         void resize_width(int new_width) {
-            if (new_width <= width) {
-                width = new_width;
-            } else {
-                auto new_data = std::valarray<Cell>(new_width * height);
-                for (int i = 0; i < width * height; i++) {
-                    new_data[i] = data[i];
-                }
-                data = new_data;
-                width = new_width;
+            auto new_data = std::valarray<Cell>(new_width * height);
+            const auto n = std::min(new_data.size(), data.size());
+            for (std::size_t i = 0; i < n; i++) {
+                new_data[i] = data[i];
             }
+            data = new_data;
+            width = new_width;
         }
     };
 
