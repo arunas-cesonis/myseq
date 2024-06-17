@@ -304,6 +304,7 @@ START_NAMESPACE_DISTRHO
                          const ImVec2 &cell_size
         ) {
             auto ctrl_held = ImGui::GetIO().KeyCtrl;
+            auto cmd_held = 0 != (ImGui::GetIO().KeyMods & ImGuiMod_Super);
             auto shift_held = ImGui::GetIO().KeyShift;
             auto mpos = ImGui::GetMousePos();
             auto cell = calc_cell(p, grid_cpos, mpos, grid_size, cell_size);
@@ -448,8 +449,20 @@ START_NAMESPACE_DISTRHO
                             p.deselect_all();
                             dirty = true;
                         }
+                    } else {
+                        if (cmd_held) {
+                            if (ImGui::IsKeyPressed(ImGuiKey_A)) {
+                                p.each_active_cell([&](const myseq::Cell &c, const V2i &v) {
+                                    p.set_selected(v, true);
+                                });
+                                dirty = true;
+                            }
+                        } else if (ImGui::IsKeyPressed(ImGuiKey_Backspace) || ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+                            p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
+                                p.clear_cell(v);
+                            });
+                        }
                     }
-
             }
         }
 

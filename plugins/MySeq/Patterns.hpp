@@ -205,24 +205,6 @@ namespace myseq {
                 c.selected = false;
         }
 
-        void move_cell(const V2i &from, const V2i &to) {
-            auto cell = get_cell(from);
-            get_cell(to) = cell;
-            get_cell(from) = Cell{0, false};
-        }
-
-        void set_on(const V2i &v) {
-            get_cell(v).velocity = 127;
-        }
-
-        void set_off(const V2i &v) {
-            get_cell(v).velocity = 0;
-        }
-
-        [[nodiscard]] bool is_on(const V2i &v) const {
-            return get_velocity(v) > 0;
-        }
-
         [[nodiscard]] uint8_t get_velocity(const V2i &v) const {
             return get_cell(v).velocity;
         }
