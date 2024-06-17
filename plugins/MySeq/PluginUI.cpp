@@ -461,6 +461,7 @@ START_NAMESPACE_DISTRHO
                             p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
                                 p.clear_cell(v);
                             });
+                            dirty = true;
                         }
                     }
             }
