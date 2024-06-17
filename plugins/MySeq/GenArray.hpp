@@ -13,6 +13,18 @@
 struct Id {
     int index;
     int gen;
+
+    Id() : index(-1), gen(-1) {}
+
+    Id(int index, int gen) : index(index), gen(gen) {}
+
+    bool operator==(const Id &other) const {
+        return index == other.index && gen == other.gen;
+    }
+
+    [[nodiscard]] bool is_null() const {
+        return index == -1;
+    }
 };
 
 template<typename T>

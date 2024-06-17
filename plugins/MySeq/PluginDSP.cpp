@@ -14,7 +14,7 @@
 #include "PluginDSP.hpp"
 
 #ifndef DEBUG
-#error "why not debug"
+// #error "why not debug"
 #endif
 
 START_NAMESPACE_DISTRHO

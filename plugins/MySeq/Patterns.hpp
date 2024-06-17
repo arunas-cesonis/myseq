@@ -54,7 +54,12 @@ namespace myseq {
         V2i operator+(const V2i &other) const {
             return {x + other.x, y + other.y};
         }
+    };
 
+    struct V2iHash {
+        std::size_t operator()(const V2i &v) const {
+            return std::hash<int>()(v.x) ^ std::hash<int>()(v.y);
+        }
     };
 
     struct Cell {
@@ -107,7 +112,12 @@ namespace myseq {
 
 
     struct Pattern2 {
-        std::vector<Cell> cells;
+        GenArray<Cell> cells;
+        std::valarray<Id> grid;
+
+        Cell &get_cell(const V2i &coords) {
+            return cells.get(grid[coords.x * 10 + coords.y]);
+        }
     };
 
     class Pattern {
@@ -118,6 +128,7 @@ namespace myseq {
         int height;
         int first_note;
         int last_note;
+        V2i cursor;
 
         explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             data.resize(width * height);

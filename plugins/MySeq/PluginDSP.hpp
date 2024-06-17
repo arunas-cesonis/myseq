@@ -12,10 +12,6 @@
 #include "Player.hpp"
 #include "TimePositionCalc.hpp"
 
-#ifndef DEBUG
-#error "why not debug"
-#endif
-
 START_NAMESPACE_DISTRHO
 
     class MySeqPlugin : public Plugin {

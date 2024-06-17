@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <unordered_set>
 #include <set>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
@@ -56,6 +57,7 @@ START_NAMESPACE_DISTRHO
         uint8_t drag_started_velocity = 0;
         std::vector<std::pair<V2i, uint8_t>> drag_started_velocity_vec;
         std::vector<V2i> moving_cells_vec;
+        std::unordered_set<V2i, myseq::V2iHash> moving_cells_set;
         V2i drag_started_cell;
         V2i previous_move_offset;
         bool drag_started_selected = false;
@@ -65,6 +67,8 @@ START_NAMESPACE_DISTRHO
         static constexpr int visible_rows = 20;
         float cell_width = 40.0f;
         float cell_height = 20.0f;
+
+        bool show_metrics = false;
 
         enum class Interaction {
             None,
@@ -295,14 +299,15 @@ START_NAMESPACE_DISTRHO
             }
         }
 
-        bool
-        grid_interaction(myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size, const ImVec2 &cell_size) {
+        void
+        grid_interaction(bool &dirty, myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size,
+                         const ImVec2 &cell_size
+        ) {
             auto ctrl_held = ImGui::GetIO().KeyCtrl;
             auto shift_held = ImGui::GetIO().KeyShift;
             auto mpos = ImGui::GetMousePos();
             auto cell = calc_cell(p, grid_cpos, mpos, grid_size, cell_size);
             auto valid_cell = cell.x >= 0 && cell.y >= 0;
-            bool dirty = false;
             switch (interaction) {
                 case Interaction::DrawingCells: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
@@ -346,7 +351,7 @@ START_NAMESPACE_DISTRHO
                                 int right = 0;
                                 int top = 0;
                                 int bottom = 0;
-                                for (auto &v: moving_cells_vec) {
+                                for (auto &v: moving_cells_set) {
                                     auto w = v + move_offset;
                                     left = std::min(left, w.x);
                                     top = std::min(top, w.y);
@@ -374,11 +379,11 @@ START_NAMESPACE_DISTRHO
                     } else {
                         if (previous_move_offset != V2i(0, 0)) {
                             std::vector<myseq::Cell> removed;
-                            for (const auto &v: moving_cells_vec) {
+                            for (const auto &v: moving_cells_set) {
                                 removed.push_back(p.get_cell(v));
                                 p.clear_cell(v);
                             }
-                            for (std::size_t i = 0; i < moving_cells_vec.size(); i++) {
+                            for (std::size_t i = 0; i < moving_cells_set.size(); i++) {
                                 p.set_cell(moving_cells_vec[i] + previous_move_offset, removed[i]);
                             }
                             dirty = true;
@@ -427,8 +432,10 @@ START_NAMESPACE_DISTRHO
                                 drag_started_cell = cell;
                                 previous_move_offset = V2i(0, 0);
                                 moving_cells_vec.clear();
+                                moving_cells_set.clear();
                                 p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
                                     moving_cells_vec.push_back(v);
+                                    moving_cells_set.insert(v);
                                 });
                                 interaction = Interaction::MovingCells;
                             } else {
@@ -444,7 +451,109 @@ START_NAMESPACE_DISTRHO
                     }
 
             }
-            return dirty;
+        }
+
+        void show_grid(bool &dirty, myseq::Pattern &p) {
+            float cell_padding = 4.0;
+            ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
+            float width = ImGui::CalcItemWidth();
+            const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
+            const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
+            const auto selected_cell = clamp_color(
+                    ImColor(active_cell.Value + ImColor(0x20, 0x20, 0x20).Value));
+            const auto hovered_color = ImColor(IM_COL32_WHITE);
+            auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
+            auto cell_size = ImVec2(width / (float) p.width, cell_height);
+            auto height = cell_size.y * (float) visible_rows;
+            const auto grid_size = ImVec2(width, height);
+            auto mpos = ImGui::GetMousePos();
+            auto cell = calc_cell(p, cpos, mpos, grid_size, cell_size);
+            auto valid_cell = cell.x >= 0 && cell.y >= 0;
+            auto *draw_list = ImGui::GetWindowDrawList();
+            auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
+            auto border_color_sel = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_TextSelectedBg)).operator ImU32();
+            auto strong_border_color = ImColor(
+                    ImGui::GetStyleColorVec4(ImGuiCol_TableBorderStrong)).operator ImU32();
+            auto alt_held = ImGui::GetIO().KeyAlt;
+
+            const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
+            const auto corner2 = corner + ImVec2(width, height) / cell_size;
+            const auto first_visible_row = (int) std::floor(corner.y);
+            const auto last_visible_row = std::min(p.height - 1, (int) std::floor(corner2.y));
+            const auto first_visible_col = std::max(0, (int) std::floor(corner.x));
+            const auto last_visible_col = std::min(p.width - 1, (int) std::floor(corner2.x));
+
+            draw_list->PushClipRect(cpos, cpos + ImVec2(width, height), true);
+
+            for (auto j = first_visible_col; j <= last_visible_col; j++) {
+                for (auto i = first_visible_row; i <= last_visible_row; i++) {
+                    auto loop_cell = V2i(j, i);
+                    auto p_min = ImVec2(cell_size.x * (float) loop_cell.x,
+                                        cell_size.y * (float) loop_cell.y) +
+                                 offset + cpos;
+                    auto p_max = p_min + ImVec2(cell_size.x, cell_size.y) - cell_padding_xy;
+                    auto vel = p.get_velocity(loop_cell);
+                    auto sel = p.get_selected(loop_cell);
+                    auto velocity_fade = ((float) vel) / 127.0f;
+                    auto cell_color1 =
+                            ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
+                    //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
+                    auto quarter_fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
+
+                    if (interaction == Interaction::MovingCells) {
+
+                        if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
+                            cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
+                        }
+                        // if (std::find_if(moving_cells_vec.begin(), moving_cells_vec.end(), [&](const V2i &v) {
+                        //     return v + previous_move_offset == loop_cell;
+                        // }) != moving_cells_vec.end()) {
+                        //     cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
+                        // }
+
+                        //assert(moving_cells_count == moving_cells_index);
+                        //if (moving_cell_index < (int) moving_cells_vec.size()) {
+                        //    // this works because order in moving_cells_vec is the same as the order in this loop:
+                        //    // (1, 1), (2, 1), (3, y), (1, 2) ...
+                        //    if (moving_cells_vec[moving_cell_index] + previous_move_offset == loop_cell) {
+                        //        moving_cell_index++;
+                        //        cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
+                        //    }
+                        //}
+                    }
+
+                    cell_color1.Value.x *= quarter_fade;
+                    cell_color1.Value.y *= quarter_fade;
+                    cell_color1.Value.z *= quarter_fade;
+                    draw_list->AddRectFilled(p_min, p_max,
+                                             sel ? mono_color(cell_color1) : cell_color1);
+                    // draw_list->AddRect(p_min, p_max, sel ? border_color_sel : border_color);
+                    draw_list->AddRect(p_min, p_max, border_color);
+
+                    auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
+                    if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
+                        draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
+                    } else if (vel > 0 && sel) {
+                        draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
+                    }
+                }
+            }
+
+            draw_list->PopClipRect();
+            draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
+            ImGui::Dummy(ImVec2(width, height));
+
+            const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.get_width()) - width));
+            const auto right = 0.0f;
+            const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.get_height()) - height));
+            const auto bottom = 0.0f;
+            if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
+                offset += ImGui::GetIO().MouseDelta;
+                offset.x = std::clamp(offset.x, left, right);
+                offset.y = std::clamp(offset.y, top, bottom);
+            }
+
+            grid_interaction(dirty, p, cpos, grid_size, cell_size);
         }
 
         void onImGuiDisplay() override {
@@ -453,18 +562,17 @@ START_NAMESPACE_DISTRHO
 
             int window_flags =
                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-                    | ImGuiWindowFlags_NoScrollWithMouse;
+                    | ImGuiWindowFlags_NoScrollWithMouse
+                    | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize;
 
             const ImGuiViewport *viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->Pos);
             ImGui::SetNextWindowSize(viewport->Size);
 
-            float cell_padding = 4.0;
             bool dirty = false;
             bool create = false;
             bool delete_ = false;
             bool duplicate = false;
-            ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             if (state.num_patterns() == 0) {
                 state.selected = state.create_pattern().id;
                 dirty = true;
@@ -473,98 +581,7 @@ START_NAMESPACE_DISTRHO
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
 
-                float width = ImGui::CalcItemWidth();
-                const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
-                const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
-                const auto selected_cell = clamp_color(
-                        ImColor(active_cell.Value + ImColor(0x20, 0x20, 0x20).Value));
-                const auto hovered_color = ImColor(IM_COL32_WHITE);
-                auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
-                auto cell_size = ImVec2(width / (float) p.width, cell_height);
-                auto height = cell_size.y * (float) visible_rows;
-                const auto grid_size = ImVec2(width, height);
-                auto mpos = ImGui::GetMousePos();
-                auto cell = calc_cell(p, cpos, mpos, grid_size, cell_size);
-                auto valid_cell = cell.x >= 0 && cell.y >= 0;
-                auto *draw_list = ImGui::GetWindowDrawList();
-                auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
-                auto border_color_sel = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_TextSelectedBg)).operator ImU32();
-                auto strong_border_color = ImColor(
-                        ImGui::GetStyleColorVec4(ImGuiCol_TableBorderStrong)).operator ImU32();
-                auto alt_held = ImGui::GetIO().KeyAlt;
-
-                const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
-                const auto corner2 = corner + ImVec2(width, height) / cell_size;
-                const auto first_visible_row = (int) std::floor(corner.y);
-                const auto last_visible_row = std::min(p.height - 1, (int) std::floor(corner2.y));
-                const auto first_visible_col = std::max(0, (int) std::floor(corner.x));
-                const auto last_visible_col = std::min(p.width - 1, (int) std::floor(corner2.x));
-
-                draw_list->PushClipRect(cpos, cpos + ImVec2(width, height), true);
-
-                for (auto i = first_visible_row; i <= last_visible_row; i++) {
-                    for (auto j = first_visible_col; j <= last_visible_col; j++) {
-                        auto loop_cell = V2i(j, i);
-                        auto p_min = ImVec2(cell_size.x * (float) loop_cell.x,
-                                            cell_size.y * (float) loop_cell.y) +
-                                     offset + cpos;
-                        auto p_max = p_min + ImVec2(cell_size.x, cell_size.y) - cell_padding_xy;
-                        auto vel = p.get_velocity(loop_cell);
-                        auto sel = p.get_selected(loop_cell);
-                        auto velocity_fade = ((float) vel) / 127.0f;
-                        auto cell_color1 =
-                                ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
-                        //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
-                        auto quarter_fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
-
-                        if (interaction == Interaction::MovingCells) {
-                            if (std::find_if(moving_cells_vec.begin(), moving_cells_vec.end(), [&](const V2i &v) {
-                                return v + previous_move_offset == loop_cell;
-                            }) != moving_cells_vec.end()) {
-                                cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
-                            }
-                            //if (moving_cell_index < (int) moving_cells_vec.size()) {
-                            //    // this works because order in moving_cells_vec is the same as the order in this loop:
-                            //    // (1, 1), (2, 1), (3, y), (1, 2) ...
-                            //    if (moving_cells_vec[moving_cell_index] + previous_move_offset == loop_cell) {
-                            //        moving_cell_index++;
-                            //        cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
-                            //    }
-                            //}
-                        }
-
-                        cell_color1.Value.x *= quarter_fade;
-                        cell_color1.Value.y *= quarter_fade;
-                        cell_color1.Value.z *= quarter_fade;
-                        draw_list->AddRectFilled(p_min, p_max,
-                                                 sel ? mono_color(cell_color1) : cell_color1);
-                        // draw_list->AddRect(p_min, p_max, sel ? border_color_sel : border_color);
-                        draw_list->AddRect(p_min, p_max, border_color);
-
-                        auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
-                        if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
-                            draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
-                        } else if (vel > 0 && sel) {
-                            draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
-                        }
-                    }
-                }
-
-                draw_list->PopClipRect();
-                draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
-                ImGui::Dummy(ImVec2(width, height));
-
-                const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.get_width()) - width));
-                const auto right = 0.0f;
-                const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.get_height()) - height));
-                const auto bottom = 0.0f;
-                if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
-                    offset += ImGui::GetIO().MouseDelta;
-                    offset.x = std::clamp(offset.x, left, right);
-                    offset.y = std::clamp(offset.y, top, bottom);
-                }
-
-                dirty = dirty | grid_interaction(p, cpos, grid_size, cell_size);
+                show_grid(dirty, p);
 
                 ImGui::SameLine();
                 ImGui::BeginGroup();
@@ -642,6 +659,11 @@ START_NAMESPACE_DISTRHO
                 }
 
                 show_keys(p);
+
+                if (ImGui::Button("Show metrics")) {
+                    show_metrics = true;
+                }
+
                 //p.first_note = note_select("First note", p.first_note);
                 //ImGui::SameLine();
                 //p.last_note = note_select("Last note", p.last_note);
@@ -650,6 +672,7 @@ START_NAMESPACE_DISTRHO
                 const TimePosition &t = ((MySeqPlugin *) getPluginInstancePointer())->last_time_position;
                 const double sr = ((MySeqPlugin *) getPluginInstancePointer())->getSampleRate();
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
+                ImGui::Text("FPS=%f", ImGui::GetCurrentContext()->IO.Framerate);
                 ImGui::Text("tick=%f", tc.global_tick());
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
                 int selected_cells_count = 0;
@@ -691,6 +714,11 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("valid_cell=%d", valid_cell);
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
                 */
+            }
+
+
+            if (show_metrics) {
+                ImGui::ShowMetricsWindow(&show_metrics);
             }
 
             ImGui::End();
