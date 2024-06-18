@@ -111,12 +111,104 @@ namespace myseq {
     };
 
 
-    struct Pattern2 {
-        GenArray<Cell> cells;
+    class Pattern2 {
+        GenArray<std::pair<V2i, Cell>> cells;
         std::valarray<Id> grid;
 
-        Cell &get_cell(const V2i &coords) {
-            return cells.get(grid[coords.x * 10 + coords.y]);
+        [[nodiscard]] V2i index_to_coords(int index) const {
+            const auto x = index / height;
+            const auto y = index % height;
+            return {x, y};
+        }
+
+        [[nodiscard]] int coords_to_index(const V2i &v) const {
+            return v.x * height + v.y;
+        }
+
+        Cell &get_create_if_not_exists(const V2i &coords) {
+            const auto idx = coords_to_index(coords);
+            const auto &cell_id = grid[idx];
+            if (cells.exist(cell_id)) {
+                return cells.get(cell_id).second;
+            } else {
+                return cells.get(cells.push({coords, {}})).second;
+            }
+        }
+
+    public:
+        int id;
+        int width;
+        int height;
+        int first_note;
+        int last_note;
+
+        explicit Pattern2(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
+            grid.resize(width * height);
+        }
+
+        Pattern2(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
+                                                                                 first_note(first_note),
+                                                                                 last_note(last_note) {
+            grid.resize(width * height);
+        }
+
+        template<typename F>
+        void each_cell(F f) const {
+            for (const auto &c: cells) {
+                const auto &loc = c.first;
+                const auto &cell = c.second;
+                f(cell, loc);
+            }
+        }
+
+        [[nodiscard]] bool exists(const V2i &coords) const {
+            return cells.exist(grid[coords_to_index(coords)]);
+        }
+
+        Cell &get(const V2i &coords) {
+            return cells.get(grid[coords_to_index(coords)]).second;
+        }
+
+        [[nodiscard]] const Cell &get(const V2i &coords) const {
+            return cells.get(grid[coords_to_index(coords)]).second;
+        }
+
+        void clear(const V2i &coords) {
+            cells.remove(grid[coords_to_index(coords)]);
+        }
+
+        void set_velocity(const V2i &v, uint8_t velocity) {
+            get_create_if_not_exists(v).velocity = velocity;
+        }
+
+        [[nodiscard]] uint8_t get_velocity(const V2i &v) const {
+            if (exists(v)) {
+                return get(v).velocity;
+            } else {
+                return 0;
+            }
+        }
+
+        void set_selected(const V2i &v, bool selected) {
+            get_create_if_not_exists(v).selected = selected;
+        }
+
+        [[nodiscard]] bool get_selected(const V2i &v) const {
+            if (exists(v)) {
+                return get(v).selected;
+            } else {
+                return false;
+            }
+        }
+
+        void resize_width(int new_width) {
+            auto new_grid = std::valarray<Id>(new_width * height);
+            const auto n = std::min(new_grid.size(), grid.size());
+            for (std::size_t i = 0; i < n; i++) {
+                new_grid[i] = grid[i];
+            }
+            grid = new_grid;
+            width = new_width;
         }
     };
 

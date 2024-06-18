@@ -138,7 +138,7 @@ struct GenArray {
         friend class GenArray<T>;
     };
 
-    void verify_id(const Id &id) {
+    void verify_id(const Id &id) const {
         if (!exist(id)) {
             throw std::runtime_error("Invalid id");
         }
