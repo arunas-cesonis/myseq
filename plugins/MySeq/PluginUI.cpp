@@ -473,8 +473,6 @@ START_NAMESPACE_DISTRHO
             float width = ImGui::CalcItemWidth();
             const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
             const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
-            const auto selected_cell = clamp_color(
-                    ImColor(active_cell.Value + ImColor(0x20, 0x20, 0x20).Value));
             const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
             auto cell_size = ImVec2(width / (float) p.width, cell_height);
@@ -482,12 +480,8 @@ START_NAMESPACE_DISTRHO
             const auto grid_size = ImVec2(width, height);
             auto mpos = ImGui::GetMousePos();
             auto cell = calc_cell(p, cpos, mpos, grid_size, cell_size);
-            auto valid_cell = cell.x >= 0 && cell.y >= 0;
             auto *draw_list = ImGui::GetWindowDrawList();
             auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
-            auto border_color_sel = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_TextSelectedBg)).operator ImU32();
-            auto strong_border_color = ImColor(
-                    ImGui::GetStyleColorVec4(ImGuiCol_TableBorderStrong)).operator ImU32();
             auto alt_held = ImGui::GetIO().KeyAlt;
 
             const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
@@ -519,21 +513,6 @@ START_NAMESPACE_DISTRHO
                         if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
                             cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
                         }
-                        // if (std::find_if(moving_cells_vec.begin(), moving_cells_vec.end(), [&](const V2i &v) {
-                        //     return v + previous_move_offset == loop_cell;
-                        // }) != moving_cells_vec.end()) {
-                        //     cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
-                        // }
-
-                        //assert(moving_cells_count == moving_cells_index);
-                        //if (moving_cell_index < (int) moving_cells_vec.size()) {
-                        //    // this works because order in moving_cells_vec is the same as the order in this loop:
-                        //    // (1, 1), (2, 1), (3, y), (1, 2) ...
-                        //    if (moving_cells_vec[moving_cell_index] + previous_move_offset == loop_cell) {
-                        //        moving_cell_index++;
-                        //        cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
-                        //    }
-                        //}
                     }
 
                     cell_color1.Value.x *= quarter_fade;
@@ -541,7 +520,6 @@ START_NAMESPACE_DISTRHO
                     cell_color1.Value.z *= quarter_fade;
                     draw_list->AddRectFilled(p_min, p_max,
                                              sel ? mono_color(cell_color1) : cell_color1);
-                    // draw_list->AddRect(p_min, p_max, sel ? border_color_sel : border_color);
                     draw_list->AddRect(p_min, p_max, border_color);
 
                     auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
