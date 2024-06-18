@@ -14,7 +14,7 @@ struct Id {
     int index;
     int gen;
 
-    Id() : index(-1), gen(-1) {}
+    Id() : index(-1), gen(0) {}
 
     Id(int index, int gen) : index(index), gen(gen) {}
 
@@ -144,7 +144,7 @@ struct GenArray {
         }
     }
 
-    void verify_index(const int index) {
+    void verify_index(const int index) const {
         if (index >= data.size() || index < 0 || !data[index].has_value()) {
             throw std::runtime_error("Invalid id");
         }
@@ -217,6 +217,11 @@ struct GenArray {
     }
 
     T &get(const Id &id) {
+        verify_id(id);
+        return data[id.index].value();
+    }
+
+    const T &get(const Id &id) const {
         verify_id(id);
         return data[id.index].value();
     }
