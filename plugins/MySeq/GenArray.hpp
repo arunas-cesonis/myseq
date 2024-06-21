@@ -188,6 +188,12 @@ struct GenArray {
         remove_at_index(id.index);
     }
 
+    void remove_if_exits(const Id &id) {
+        if (exist(id)) {
+            remove(id);
+        }
+    }
+
     void remove_at_index(int index) {
         verify_index(index);
         data[index].reset();

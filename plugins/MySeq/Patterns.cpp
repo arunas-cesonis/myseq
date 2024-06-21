@@ -11,14 +11,14 @@
 
 namespace myseq {
 
-    Pattern pattern_from_json(const rapidjson::Value &value) {
+    Pattern3 pattern3_from_json(const rapidjson::Value &value) {
         auto id = value["id"].GetInt();
         auto width = value["width"].GetInt();
         auto height = value["height"].GetInt();
         auto first_note = value["first_note"].GetInt();
         auto last_note = value["last_note"].GetInt();
         auto carr = value["data"].GetArray();
-        Pattern p(id, width, height, first_note, last_note);
+        Pattern3 p(id, width, height, first_note, last_note);
         for (int i = 0; i < carr.Size(); i++) {
             auto cobj = carr[i].GetObject();
             int cell_index = cobj["i"].GetInt();
@@ -33,14 +33,14 @@ namespace myseq {
         return p;
     }
 
-    Pattern2 pattern2_from_json(const rapidjson::Value &value) {
+    Pattern pattern_from_json(const rapidjson::Value &value) {
         auto id = value["id"].GetInt();
         auto width = value["width"].GetInt();
         auto height = value["height"].GetInt();
         auto first_note = value["first_note"].GetInt();
         auto last_note = value["last_note"].GetInt();
         auto carr = value["cells"].GetArray();
-        Pattern2 p(id, width, height, first_note, last_note);
+        Pattern p(id, width, height, first_note, last_note);
         for (int i = 0; i < (int) carr.Size(); i++) {
             auto cobj = carr[i].GetObject();
             int x = cobj["x"].GetInt();
@@ -93,7 +93,7 @@ namespace myseq {
 
 
     [[nodiscard]] rapidjson::Value
-    pattern2_to_json(const Pattern2 &pattern, rapidjson::Document::AllocatorType &allocator) {
+    pattern_to_json(const Pattern &pattern, rapidjson::Document::AllocatorType &allocator) {
         rapidjson::Value pobj(rapidjson::kObjectType);
         pobj.AddMember("width", pattern.width, allocator)
                 .AddMember("id", pattern.id, allocator)
@@ -105,6 +105,7 @@ namespace myseq {
         pattern.each_cell([&](const Cell &cell, const V2i &coords) {
             rapidjson::Value o(rapidjson::kObjectType);
             auto ob = o.GetObject();
+            assert(cell.velocity > 0);
             ob.AddMember("x", coords.x, allocator)
                     .AddMember("y", coords.y, allocator)
                     .AddMember("v", (int) cell.velocity, allocator);
@@ -118,7 +119,7 @@ namespace myseq {
     }
 
     [[nodiscard]] rapidjson::Value
-    pattern_to_json(const Pattern &pattern, rapidjson::Document::AllocatorType &allocator) {
+    pattern3_to_json(const Pattern3 &pattern, rapidjson::Document::AllocatorType &allocator) {
         rapidjson::Value pobj(rapidjson::kObjectType);
         pobj.AddMember("width", pattern.width, allocator)
                 .AddMember("id", pattern.id, allocator)

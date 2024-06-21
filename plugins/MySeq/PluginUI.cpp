@@ -56,7 +56,6 @@ START_NAMESPACE_DISTRHO
         myseq::State state;
         uint8_t drag_started_velocity = 0;
         std::vector<std::pair<V2i, uint8_t>> drag_started_velocity_vec;
-        std::vector<V2i> moving_cells_vec;
         std::unordered_set<V2i, myseq::V2iHash> moving_cells_set;
         V2i drag_started_cell;
         V2i previous_move_offset;
@@ -303,6 +302,8 @@ START_NAMESPACE_DISTRHO
         grid_interaction(bool &dirty, myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size,
                          const ImVec2 &cell_size
         ) {
+            auto before = interaction;
+
             auto ctrl_held = ImGui::GetIO().KeyCtrl;
             auto cmd_held = 0 != (ImGui::GetIO().KeyMods & ImGuiMod_Super);
             auto shift_held = ImGui::GetIO().KeyShift;
@@ -379,14 +380,15 @@ START_NAMESPACE_DISTRHO
                         }
                     } else {
                         if (previous_move_offset != V2i(0, 0)) {
-                            std::vector<myseq::Cell> removed;
+                            std::vector<std::pair<V2i, myseq::Cell>> removed;
                             for (const auto &v: moving_cells_set) {
-                                removed.push_back(p.get_cell(v));
+                                removed.push_back({v, p.get_cell(v)});
                                 p.clear_cell(v);
                             }
-                            for (std::size_t i = 0; i < moving_cells_set.size(); i++) {
-                                p.set_cell(moving_cells_vec[i] + previous_move_offset, removed[i]);
+                            for (auto pair: removed) {
+                                p.set_cell(pair.first + previous_move_offset, pair.second);
                             }
+                            moving_cells_set.clear();
                             dirty = true;
                         }
                         interaction = Interaction::None;
@@ -432,10 +434,8 @@ START_NAMESPACE_DISTRHO
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
                                 previous_move_offset = V2i(0, 0);
-                                moving_cells_vec.clear();
                                 moving_cells_set.clear();
                                 p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
-                                    moving_cells_vec.push_back(v);
                                     moving_cells_set.insert(v);
                                 });
                                 interaction = Interaction::MovingCells;
@@ -452,7 +452,7 @@ START_NAMESPACE_DISTRHO
                     } else {
                         if (cmd_held) {
                             if (ImGui::IsKeyPressed(ImGuiKey_A)) {
-                                p.each_active_cell([&](const myseq::Cell &c, const V2i &v) {
+                                p.each_cell([&](const myseq::Cell &c, const V2i &v) {
                                     p.set_selected(v, true);
                                 });
                                 dirty = true;
@@ -464,6 +464,8 @@ START_NAMESPACE_DISTRHO
                             dirty = true;
                         }
                     }
+            }
+            if (interaction != before) {
             }
         }
 
@@ -509,7 +511,6 @@ START_NAMESPACE_DISTRHO
                     auto quarter_fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
 
                     if (interaction == Interaction::MovingCells) {
-
                         if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
                             cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
                         }
@@ -673,11 +674,9 @@ START_NAMESPACE_DISTRHO
                 });
                 ImGui::Text("selected_cells count=%d", selected_cells_count);
                 ImGui::Text("publish_count=%d", publish_count);
-                std::ostringstream oss;
-                for (auto &v: moving_cells_vec) {
-                    oss << "(" << v.x << "," << v.y << ") ";
-                }
-                ImGui::Text("moving_cells=[%s]", oss.str().c_str());
+                ImGui::Text("drag_started_velocity=%d", drag_started_velocity);
+                ImGui::Text("previous_move_offset=%d %d", previous_move_offset.x, previous_move_offset.y);
+                ImGui::Text("p: %s", p.debug_print().c_str());
 
                 /*
                 ImGui::Text("t.frame=%llu", t.frame);

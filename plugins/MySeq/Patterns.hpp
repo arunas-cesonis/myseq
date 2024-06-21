@@ -110,8 +110,7 @@ namespace myseq {
         }
     };
 
-
-    class Pattern2 {
+    class Pattern {
         GenArray<std::pair<V2i, Cell>> cells;
         std::valarray<Id> grid;
 
@@ -125,16 +124,6 @@ namespace myseq {
             return v.x * height + v.y;
         }
 
-        Cell &get_create_if_not_exists(const V2i &coords) {
-            const auto idx = coords_to_index(coords);
-            const auto &cell_id = grid[idx];
-            if (cells.exist(cell_id)) {
-                return cells.get(cell_id).second;
-            } else {
-                return cells.get(cells.push({coords, {}})).second;
-            }
-        }
-
     public:
         int id;
         int width;
@@ -142,14 +131,26 @@ namespace myseq {
         int first_note;
         int last_note;
 
-        explicit Pattern2(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
+        explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             grid.resize(width * height);
         }
 
-        Pattern2(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
-                                                                                 first_note(first_note),
-                                                                                 last_note(last_note) {
+        Pattern(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
+                                                                                first_note(first_note),
+                                                                                last_note(last_note) {
             grid.resize(width * height);
+        }
+
+        [[nodiscard]] const std::string debug_print() const {
+            std::ostringstream oss;
+            int n = 0;
+            oss << "[";
+            for (const auto pair: cells) {
+                oss << "(" << pair.first.x << ", " << pair.first.y << ", " << (int) pair.second.velocity << ", "
+                    << pair.second.selected << ")";
+            }
+            oss << "]";
+            return oss.str();
         }
 
         template<typename F>
@@ -161,41 +162,84 @@ namespace myseq {
             }
         }
 
+        template<typename F>
+        void each_selected_cell(F f) const {
+            each_cell([&f](const Cell &cell, const V2i &loc) {
+                if (cell.selected) {
+                    f(cell, loc);
+                }
+            });
+        }
+
         [[nodiscard]] bool exists(const V2i &coords) const {
             return cells.exist(grid[coords_to_index(coords)]);
         }
 
-        Cell &get(const V2i &coords) {
+        Cell &get_create_if_not_exists(const V2i &coords) {
+            const auto idx = coords_to_index(coords);
+            const auto &cell_id = grid[idx];
+            if (cells.exist(cell_id)) {
+                return cells.get(cell_id).second;
+            } else {
+                const auto new_id = cells.push({coords, {}});
+                grid[coords_to_index(coords)] = new_id;
+                return cells.get(new_id).second;
+            }
+        }
+
+        void set_cell(const V2i &coords, const Cell &c) {
+            get_create_if_not_exists(coords) = c;
+        }
+
+        [[nodiscard]] const Cell &get_cell(const V2i &coords) const {
             return cells.get(grid[coords_to_index(coords)]).second;
         }
 
-        [[nodiscard]] const Cell &get(const V2i &coords) const {
+        Cell &get_cell(const V2i &coords) {
             return cells.get(grid[coords_to_index(coords)]).second;
         }
 
-        void clear(const V2i &coords) {
+        void clear_cell(const V2i &coords) {
             cells.remove(grid[coords_to_index(coords)]);
         }
 
+        void deselect_all() {
+            for (auto &c: cells) {
+                c.second.selected = false;
+            }
+        }
+
         void set_velocity(const V2i &v, uint8_t velocity) {
+            if (velocity == 0) {
+                if (exists(v))
+                    clear_cell(v);
+                return;
+            }
             get_create_if_not_exists(v).velocity = velocity;
         }
 
         [[nodiscard]] uint8_t get_velocity(const V2i &v) const {
             if (exists(v)) {
-                return get(v).velocity;
+                return get_cell(v).velocity;
             } else {
                 return 0;
             }
         }
 
         void set_selected(const V2i &v, bool selected) {
-            get_create_if_not_exists(v).selected = selected;
+            if (exists(v)) {
+                get_cell(v).selected = selected;
+            }
+        }
+
+        void select_all() {
+            for (auto &c: cells)
+                c.second.selected = true;
         }
 
         [[nodiscard]] bool get_selected(const V2i &v) const {
             if (exists(v)) {
-                return get(v).selected;
+                return get_cell(v).selected;
             } else {
                 return false;
             }
@@ -210,9 +254,29 @@ namespace myseq {
             grid = new_grid;
             width = new_width;
         }
+
+        [[nodiscard]] int get_last_note() const {
+            return last_note;
+        }
+
+        [[nodiscard]] int get_id() const {
+            return id;
+        }
+
+        [[nodiscard]] int get_first_note() const {
+            return first_note;
+        }
+
+        [[nodiscard]] int get_width() const {
+            return width;
+        }
+
+        [[nodiscard]] int get_height() const {
+            return height;
+        }
     };
 
-    class Pattern {
+    class Pattern3 {
         std::valarray<Cell> data;
     public:
         int id;
@@ -222,16 +286,14 @@ namespace myseq {
         int last_note;
         V2i cursor;
 
-        explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
+        explicit Pattern3(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             data.resize(width * height);
-            d_debug("HERE 2 size=%d", (int) data.size());
         }
 
-        Pattern(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
-                                                                                first_note(first_note),
-                                                                                last_note(last_note) {
+        Pattern3(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
+                                                                                 first_note(first_note),
+                                                                                 last_note(last_note) {
             data.resize(width * height);
-            d_debug("HERE 2 size=%d", (int) data.size());
         }
 
         [[nodiscard]] V2i index_to_coords(int index) const {
@@ -291,6 +353,7 @@ namespace myseq {
             c.velocity = 0;
             c.selected = false;
         }
+
 
         void deselect_all() {
             for (auto &c: data)
