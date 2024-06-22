@@ -443,10 +443,10 @@ START_NAMESPACE_DISTRHO
                                 interaction = Interaction::DrawingCells;
                                 drag_started_velocity = p.get_velocity(cell);
                                 p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
+                                p.deselect_all();
                                 dirty = true;
                             }
-                        } else if (shift_held) {
-                            p.deselect_all();
+                        } else {
                             dirty = true;
                         }
                     } else {

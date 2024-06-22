@@ -203,10 +203,15 @@ namespace myseq {
             cells.remove(grid[coords_to_index(coords)]);
         }
 
-        void deselect_all() {
+        int deselect_all() {
+            int count = 0;
             for (auto &c: cells) {
+                if (c.second.selected) {}
+                count++;
                 c.second.selected = false;
+
             }
+            return count;
         }
 
         void set_velocity(const V2i &v, uint8_t velocity) {
