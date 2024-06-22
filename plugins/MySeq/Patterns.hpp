@@ -130,6 +130,7 @@ namespace myseq {
         int height;
         int first_note;
         int last_note;
+        V2iHash cursor;
 
         explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             grid.resize(width * height);
@@ -206,9 +207,10 @@ namespace myseq {
         int deselect_all() {
             int count = 0;
             for (auto &c: cells) {
-                if (c.second.selected) {}
-                count++;
-                c.second.selected = false;
+                if (c.second.selected) {
+                    c.second.selected = false;
+                    count++;
+                }
 
             }
             return count;
@@ -250,6 +252,7 @@ namespace myseq {
             }
         }
 
+
         void resize_width(int new_width) {
             auto new_grid = std::valarray<Id>(new_width * height);
             const auto n = std::min(new_grid.size(), grid.size());
@@ -260,114 +263,6 @@ namespace myseq {
             width = new_width;
         }
 
-        [[nodiscard]] int get_last_note() const {
-            return last_note;
-        }
-
-        [[nodiscard]] int get_id() const {
-            return id;
-        }
-
-        [[nodiscard]] int get_first_note() const {
-            return first_note;
-        }
-
-        [[nodiscard]] int get_width() const {
-            return width;
-        }
-
-        [[nodiscard]] int get_height() const {
-            return height;
-        }
-    };
-
-    class Pattern3 {
-        std::valarray<Cell> data;
-    public:
-        int id;
-        int width;
-        int height;
-        int first_note;
-        int last_note;
-        V2i cursor;
-
-        explicit Pattern3(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
-            data.resize(width * height);
-        }
-
-        Pattern3(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
-                                                                                 first_note(first_note),
-                                                                                 last_note(last_note) {
-            data.resize(width * height);
-        }
-
-        [[nodiscard]] V2i index_to_coords(int index) const {
-            const auto x = index / height;
-            const auto y = index % height;
-            return {x, y};
-        }
-
-        [[nodiscard]] int coords_to_index(const V2i &v) const {
-            return v.x * height + v.y;
-        }
-
-        template<typename F>
-        void each_active_cell(F f) const {
-            for (int i = 0; i < (int) data.size(); i++) {
-                const auto &cell = data[i];
-                if (cell.velocity > 0) {
-                    f(cell, index_to_coords(i));
-                }
-            }
-        }
-
-        template<typename F>
-        void each_selected_cell(F f) const {
-            for (int i = 0; i < (int) data.size(); i++) {
-                const auto &cell = data[i];
-                if (cell.selected > 0) {
-                    f(cell, index_to_coords(i));
-                }
-            }
-        }
-
-        Cell &get_cell(const V2i &v) {
-            assert(v.x >= 0 && v.x < width && v.y >= 0 && v.y < height);
-            return data[coords_to_index(v)];
-        }
-
-        [[nodiscard]] const Cell &get_cell(const V2i &v) const {
-            assert(v.x >= 0 && v.x < width && v.y >= 0 && v.y < height);
-            return data[coords_to_index(v)];
-        }
-
-        void set_velocity(const V2i &v, uint8_t velocity) {
-            get_cell(v).velocity = velocity;
-        }
-
-        void set_selected(const V2i &v, bool selected) {
-            get_cell(v).selected = selected;
-        }
-
-        void set_cell(const V2i &v, Cell &c) {
-            get_cell(v) = c;
-        }
-
-        void clear_cell(const V2i &v) {
-            auto &c = get_cell(v);
-            c.velocity = 0;
-            c.selected = false;
-        }
-
-
-        void deselect_all() {
-            for (auto &c: data)
-                c.selected = false;
-        }
-
-        [[nodiscard]] uint8_t get_velocity(const V2i &v) const {
-            return get_cell(v).velocity;
-        }
 
         [[nodiscard]] int get_last_note() const {
             return last_note;
@@ -387,20 +282,6 @@ namespace myseq {
 
         [[nodiscard]] int get_height() const {
             return height;
-        }
-
-        [[nodiscard]] bool get_selected(const V2i &v) const {
-            return get_cell(v).selected;
-        }
-
-        void resize_width(int new_width) {
-            auto new_data = std::valarray<Cell>(new_width * height);
-            const auto n = std::min(new_data.size(), data.size());
-            for (std::size_t i = 0; i < n; i++) {
-                new_data[i] = data[i];
-            }
-            data = new_data;
-            width = new_width;
         }
     };
 

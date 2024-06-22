@@ -11,27 +11,6 @@
 
 namespace myseq {
 
-    Pattern3 pattern3_from_json(const rapidjson::Value &value) {
-        auto id = value["id"].GetInt();
-        auto width = value["width"].GetInt();
-        auto height = value["height"].GetInt();
-        auto first_note = value["first_note"].GetInt();
-        auto last_note = value["last_note"].GetInt();
-        auto carr = value["data"].GetArray();
-        Pattern3 p(id, width, height, first_note, last_note);
-        for (int i = 0; i < carr.Size(); i++) {
-            auto cobj = carr[i].GetObject();
-            int cell_index = cobj["i"].GetInt();
-            auto velocity = static_cast<uint8_t>(cobj["v"].GetInt());
-            bool selected = cobj.HasMember("s") ? static_cast<uint8_t>(cobj["s"].GetBool()) : false;
-            auto coords = p.index_to_coords(cell_index);
-            p.set_velocity(coords, velocity);
-            if (selected) {
-                p.set_selected(coords, true);
-            }
-        }
-        return p;
-    }
 
     Pattern pattern_from_json(const rapidjson::Value &value) {
         auto id = value["id"].GetInt();
@@ -115,30 +94,6 @@ namespace myseq {
             data_arr.PushBack(o, allocator);
         });
         pobj.GetObject().AddMember("cells", data_arr, allocator);
-        return pobj;
-    }
-
-    [[nodiscard]] rapidjson::Value
-    pattern3_to_json(const Pattern3 &pattern, rapidjson::Document::AllocatorType &allocator) {
-        rapidjson::Value pobj(rapidjson::kObjectType);
-        pobj.AddMember("width", pattern.width, allocator)
-                .AddMember("id", pattern.id, allocator)
-                .AddMember("height", pattern.height, allocator)
-                .AddMember("first_note", pattern.first_note, allocator)
-                .AddMember("last_note", pattern.last_note, allocator);
-        //d.GetObject().AddMember("data", height, d.GetAllocator());
-        rapidjson::Value data_arr(rapidjson::kArrayType);
-        pattern.each_active_cell([&](const Cell &cell, const V2i &coords) {
-            rapidjson::Value o(rapidjson::kObjectType);
-            auto ob = o.GetObject();
-            ob.AddMember("i", pattern.coords_to_index(coords), allocator)
-                    .AddMember("v", (int) cell.velocity, allocator);
-            if (cell.selected) {
-                ob.AddMember("s", (bool) cell.selected, allocator);
-            }
-            data_arr.PushBack(o, allocator);
-        });
-        pobj.GetObject().AddMember("data", data_arr, allocator);
         return pobj;
     }
 
