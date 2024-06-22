@@ -130,7 +130,6 @@ namespace myseq {
         int height;
         int first_note;
         int last_note;
-        V2iHash cursor;
 
         explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             grid.resize(width * height);

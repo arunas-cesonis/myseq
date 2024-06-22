@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <map>
+#include <boost/interprocess/ipc/message_queue.hpp>
 #include "DistrhoPlugin.hpp"
 #include "Patterns.hpp"
 #include "Player.hpp"

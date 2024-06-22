@@ -10,6 +10,9 @@
 
 START_NAMESPACE_DISTRHO
 
+// #define SET_DIRTY() { d_debug("dirty: %d", __LINE__);  dirty = true; }
+#define SET_DIRTY() {   dirty = true; }
+
 // --------------------------------------------------------------------------------------------------------------------
 
     using myseq::V2i;
@@ -315,7 +318,7 @@ START_NAMESPACE_DISTRHO
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (valid_cell) {
                             p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
-                            dirty = true;
+                            SET_DIRTY();
                         }
                     } else {
                         interaction = Interaction::None;
@@ -337,7 +340,7 @@ START_NAMESPACE_DISTRHO
                                 }
                                 p.set_velocity(pair.first, new_vel2);
                             }
-                            dirty = true;
+                            SET_DIRTY();
                         }
                     } else {
                         interaction = Interaction::None;
@@ -389,7 +392,7 @@ START_NAMESPACE_DISTRHO
                                 p.set_cell(pair.first + previous_move_offset, pair.second);
                             }
                             moving_cells_set.clear();
-                            dirty = true;
+                            SET_DIRTY();
                         }
                         interaction = Interaction::None;
                     }
@@ -404,7 +407,7 @@ START_NAMESPACE_DISTRHO
                         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
                             if (valid_cell) {
                                 p.set_selected(cell, !drag_started_selected);
-                                dirty = true;
+                                SET_DIRTY();
                             }
                         }
                     } else {
@@ -429,7 +432,7 @@ START_NAMESPACE_DISTRHO
                                 drag_started_selected = p.get_selected(cell);
                                 p.set_selected(cell, !drag_started_selected);
                                 interaction = Interaction::DragSelectingCells;
-                                dirty = true;
+                                SET_DIRTY();
                             } else if (p.get_selected(cell)) {
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
@@ -444,10 +447,10 @@ START_NAMESPACE_DISTRHO
                                 drag_started_velocity = p.get_velocity(cell);
                                 p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
                                 p.deselect_all();
-                                dirty = true;
+                                SET_DIRTY();
                             }
                         } else {
-                            dirty = true;
+                            SET_DIRTY();
                         }
                     } else {
                         if (cmd_held) {
@@ -455,13 +458,13 @@ START_NAMESPACE_DISTRHO
                                 p.each_cell([&](const myseq::Cell &c, const V2i &v) {
                                     p.set_selected(v, true);
                                 });
-                                dirty = true;
+                                SET_DIRTY();
                             }
                         } else if (ImGui::IsKeyPressed(ImGuiKey_Backspace) || ImGui::IsKeyPressed(ImGuiKey_Delete)) {
                             p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
                                 p.clear_cell(v);
                             });
-                            dirty = true;
+                            SET_DIRTY();
                         }
                     }
             }
@@ -521,7 +524,14 @@ START_NAMESPACE_DISTRHO
                     cell_color1.Value.z *= quarter_fade;
                     draw_list->AddRectFilled(p_min, p_max,
                                              sel ? mono_color(cell_color1) : cell_color1);
+                    // Might make sense instead of checking were
+                    // we are and maybe one of the things we need to draw is here
+                    // draw things that are visible and necessary to draw
+                    // [if (p.cursor == loop_cell) {
+                    // [    draw_list->AddRect(p_min, p_max, IM_COL32_WHITE);
+                    // [} else {
                     draw_list->AddRect(p_min, p_max, border_color);
+                    // }
 
                     auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
@@ -568,7 +578,7 @@ START_NAMESPACE_DISTRHO
             bool duplicate = false;
             if (state.num_patterns() == 0) {
                 state.selected = state.create_pattern().id;
-                dirty = true;
+                SET_DIRTY();
             }
             auto &p = state.get_selected_pattern();
 
@@ -579,17 +589,17 @@ START_NAMESPACE_DISTRHO
                 ImGui::SameLine();
                 ImGui::BeginGroup();
                 if (ImGui::Button("Add")) {
-                    dirty = true;
+                    SET_DIRTY();
                     create = true;
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Delete")) {
-                    dirty = true;
+                    SET_DIRTY();
                     delete_ = true;
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Duplicate")) {
-                    dirty = true;
+                    SET_DIRTY();
                     duplicate = true;
                 }
 
@@ -609,7 +619,7 @@ START_NAMESPACE_DISTRHO
                         const auto id = pp.id;
                         if (ImGui::Selectable(std::to_string(id).c_str(), state.selected == id, flags)) {
                             state.selected = id;
-                            dirty = true;
+                            SET_DIRTY();
                         }
 
                         // length
@@ -624,7 +634,7 @@ START_NAMESPACE_DISTRHO
                         const auto first_note = note_select(tmp.first_note);
                         if (tmp.first_note != first_note) {
                             tmp.first_note = first_note;
-                            dirty = true;
+                            SET_DIRTY();
                         }
                         ImGui::PopID();
 
@@ -634,7 +644,7 @@ START_NAMESPACE_DISTRHO
                         const auto last_note = note_select(tmp.last_note);
                         if (tmp.last_note != last_note) {
                             tmp.last_note = last_note;
-                            dirty = true;
+                            SET_DIRTY();
                         }
                         ImGui::PopID();
                         ImGui::PopID();
@@ -648,7 +658,7 @@ START_NAMESPACE_DISTRHO
                 if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
                                      ImGuiSliderFlags_None)) {
                     p.resize_width(pattern_width_slider_value);
-                    dirty = true;
+                    SET_DIRTY();
                 }
 
                 show_keys(p);
