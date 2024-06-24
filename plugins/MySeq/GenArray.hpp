@@ -85,8 +85,6 @@ struct GenArray {
         using pointer = T *;
         using reference = T &;
         using iterator_category = std::forward_iterator_tag;
-
-        friend class GenArray<T>;
     };
 
     class iterator {
@@ -101,6 +99,9 @@ struct GenArray {
         }
 
     public:
+
+        friend class GenArray<T>;
+
         explicit iterator(GenArray<T> *ga, int _index = 0) : ga(ga), index(_index) {
             seek_valid();
         }
@@ -178,7 +179,7 @@ struct GenArray {
     }
 
     [[nodiscard]] bool exist(const Id &id) const {
-        return id.index >= 0 && id.index < data.size()
+        return id.index >= 0 && id.index < (int) data.size()
                && data[id.index].has_value()
                && data_gen[id.index] == id.gen;
     }

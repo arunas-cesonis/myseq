@@ -19,7 +19,11 @@ namespace myseq {
         auto first_note = value["first_note"].GetInt();
         auto last_note = value["last_note"].GetInt();
         auto carr = value["cells"].GetArray();
-        Pattern p(id, width, height, first_note, last_note);
+        int cursor_x = value.HasMember("cursor_x") ?
+                       value["cursor_x"].GetInt() : 0;
+        int cursor_y = value.HasMember("cursor_y") ?
+                       value["cursor_y"].GetInt() : 0;
+        Pattern p(id, width, height, first_note, last_note, V2i(cursor_x, cursor_y));
         for (int i = 0; i < (int) carr.Size(); i++) {
             auto cobj = carr[i].GetObject();
             int x = cobj["x"].GetInt();
@@ -78,7 +82,9 @@ namespace myseq {
                 .AddMember("id", pattern.id, allocator)
                 .AddMember("height", pattern.height, allocator)
                 .AddMember("first_note", pattern.first_note, allocator)
-                .AddMember("last_note", pattern.last_note, allocator);
+                .AddMember("last_note", pattern.last_note, allocator)
+                .AddMember("cursor_x", pattern.cursor.x, allocator)
+                .AddMember("cursor_y", pattern.cursor.y, allocator);
         //d.GetObject().AddMember("data", height, d.GetAllocator());
         rapidjson::Value data_arr(rapidjson::kArrayType);
         pattern.each_cell([&](const Cell &cell, const V2i &coords) {

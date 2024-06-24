@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <unordered_set>
-#include <set>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
 #include "Patterns.hpp"
@@ -25,14 +24,14 @@ START_NAMESPACE_DISTRHO
         return std::min(std::max(value, min), max);
     }
 
-    ImColor clamp_color(ImColor color) {
-        return {
-                clamp(color.Value.x, 0.0f, 1.0f),
-                clamp(color.Value.y, 0.0f, 1.0f),
-                clamp(color.Value.z, 0.0f, 1.0f),
-                clamp(color.Value.w, 0.0f, 1.0f)
-        };
-    }
+    // ImColor clamp_color(ImColor color) {
+    //     return {
+    //             clamp(color.Value.x, 0.0f, 1.0f),
+    //             clamp(color.Value.y, 0.0f, 1.0f),
+    //             clamp(color.Value.z, 0.0f, 1.0f),
+    //             clamp(color.Value.w, 0.0f, 1.0f)
+    //     };
+    // }
 
     ImColor mono_color(ImColor color) {
         auto avg = (color.Value.x + color.Value.y + color.Value.z) / 3.0f;
@@ -44,14 +43,14 @@ START_NAMESPACE_DISTRHO
         };
     }
 
-    ImColor invert_color(ImColor color) {
-        return {
-                1.0f - color.Value.x,
-                1.0f - color.Value.y,
-                1.0f - color.Value.z,
-                color.Value.w
-        };
-    }
+    // ImColor invert_color(ImColor color) {
+    //     return {
+    //             1.0f - color.Value.x,
+    //             1.0f - color.Value.y,
+    //             1.0f - color.Value.z,
+    //             color.Value.w
+    //     };
+    // }
 
 
     class MySeqUI : public UI {
@@ -168,8 +167,6 @@ START_NAMESPACE_DISTRHO
             auto width = ImGui::CalcItemWidth();
             auto notes = 127;
             auto octaves = (notes / 12) + (notes % 12 == 0 ? 0 : 1);
-            auto item_width = width / (float) octaves;
-            auto g = ImGui::GetCurrentContext();
             static int click_count = 0;
 
             if (ImGui::BeginPopupContextItem("select")) {
@@ -298,6 +295,47 @@ START_NAMESPACE_DISTRHO
                     ImGui::Text("Note: %s", ALL_NOTES[note]);
                     ImGui::EndTooltip();
                 }
+            }
+        }
+
+        static void
+        cursor_interaction(bool &dirty, myseq::Pattern &p) {
+            if (ImGui::IsKeyPressed(ImGuiKey_J)) {
+                if (p.cursor.y + 1 < p.height) {
+                    p.cursor.y += 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_K)) {
+                if (p.cursor.y > 0) {
+                    p.cursor.y -= 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_H)) {
+                if (p.cursor.x > 0) {
+                    p.cursor.x -= 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_L)) {
+                if (p.cursor.x + 1 < p.width) {
+                    p.cursor.x += 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_0)) {
+                if (p.cursor.x != 0) {
+                    p.cursor.x = 0;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_4)) {
+                if (p.cursor.x != p.width - 1) {
+                    p.cursor.x = p.width - 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
+                auto v = p.get_velocity(p.cursor);
+                uint8_t new_v = v == 0 ? 127 : 0;
+                p.set_velocity(p.cursor, new_v);
+                p.cursor.x = p.cursor.x + 1 < p.width ? p.cursor.x + 1 : 0;
+                SET_DIRTY();
             }
         }
 
@@ -475,28 +513,34 @@ START_NAMESPACE_DISTRHO
         void show_grid(bool &dirty, myseq::Pattern &p) {
             float cell_padding = 4.0;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
-            float width = ImGui::CalcItemWidth();
+            float grid_width = ImGui::CalcItemWidth();
             const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
             const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
             const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
-            auto cell_size = ImVec2(width / (float) p.width, cell_height);
-            auto height = cell_size.y * (float) visible_rows;
-            const auto grid_size = ImVec2(width, height);
+            auto cell_size = ImVec2(grid_width / (float) p.width, cell_height);
+            // auto cell_size = ImVec2(cell_height, cell_height);
+            auto grid_height = cell_size.y * (float) visible_rows;
+            const auto grid_size = ImVec2(grid_width, grid_height);
             auto mpos = ImGui::GetMousePos();
             auto cell = calc_cell(p, cpos, mpos, grid_size, cell_size);
             auto *draw_list = ImGui::GetWindowDrawList();
             auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
             auto alt_held = ImGui::GetIO().KeyAlt;
 
+            cursor_interaction(dirty, p);
+            //auto ofc = offset / cell_size;
+            //offset.y += -1.0f * std::min(0.0f, (float) p.cursor.y + ofc.y) * cell_size.y;
+            // offset.y -= 1.0f * std::max(0.0f, ((float) p.cursor.y + ofc.y) - (float) visible_rows) * cell_size.y;
+
             const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
-            const auto corner2 = corner + ImVec2(width, height) / cell_size;
+            const auto corner2 = corner + ImVec2(grid_width, grid_height) / cell_size;
             const auto first_visible_row = (int) std::floor(corner.y);
             const auto last_visible_row = std::min(p.height - 1, (int) std::floor(corner2.y));
             const auto first_visible_col = std::max(0, (int) std::floor(corner.x));
             const auto last_visible_col = std::min(p.width - 1, (int) std::floor(corner2.x));
 
-            draw_list->PushClipRect(cpos, cpos + ImVec2(width, height), true);
+            draw_list->PushClipRect(cpos, cpos + ImVec2(grid_width, grid_height), true);
 
             for (auto j = first_visible_col; j <= last_visible_col; j++) {
                 for (auto i = first_visible_row; i <= last_visible_row; i++) {
@@ -527,11 +571,11 @@ START_NAMESPACE_DISTRHO
                     // Might make sense instead of checking were
                     // we are and maybe one of the things we need to draw is here
                     // draw things that are visible and necessary to draw
-                    // [if (p.cursor == loop_cell) {
-                    // [    draw_list->AddRect(p_min, p_max, IM_COL32_WHITE);
-                    // [} else {
-                    draw_list->AddRect(p_min, p_max, border_color);
-                    // }
+                    if (p.cursor == loop_cell) {
+                        draw_list->AddRect(p_min, p_max, IM_COL32_WHITE);
+                    } else {
+                        draw_list->AddRect(p_min, p_max, border_color);
+                    }
 
                     auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
@@ -543,18 +587,30 @@ START_NAMESPACE_DISTRHO
             }
 
             draw_list->PopClipRect();
-            draw_list->AddRect(cpos, cpos + ImVec2(width, height), border_color);
-            ImGui::Dummy(ImVec2(width, height));
+            draw_list->AddRect(cpos, cpos + ImVec2(grid_width, grid_height), border_color);
+            ImGui::Dummy(ImVec2(grid_width, grid_height));
 
-            const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.get_width()) - width));
+            const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.get_width()) - grid_width));
             const auto right = 0.0f;
-            const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.get_height()) - height));
+            const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.get_height()) - grid_height));
             const auto bottom = 0.0f;
+            // const auto cursor_left = p.cursor.x * cell_size.x;
+            // const auto cursor_right = (1.0 + p.cursor.x) * cell_size.x;
+            // const auto cursor_bottom = (1.0 + p.cursor.x) * p.cursor.y * cell_size.y;
+
             if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
                 offset += ImGui::GetIO().MouseDelta;
-                offset.x = std::clamp(offset.x, left, right);
-                offset.y = std::clamp(offset.y, top, bottom);
             }
+
+            offset.x = std::clamp(offset.x, left, right);
+            offset.y = std::clamp(offset.y, top, bottom);
+
+            const auto cursor_pos = ImVec2((float) p.cursor.x * cell_size.x, (float) p.cursor.y * cell_size.y);
+            offset.y = std::max(-cursor_pos.y, offset.y);
+            offset.y = std::min(-(cursor_pos.y + grid_size.y * 0.5f - cell_size.y), offset.y);
+
+            ImGui::Text("oy=%f", offset.y);
+            // offset.y = offset.y < -cursor_pos.y ? -cursor_pos.y : offset.y;
 
             grid_interaction(dirty, p, cpos, grid_size, cell_size);
         }
@@ -686,6 +742,7 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("publish_count=%d", publish_count);
                 ImGui::Text("drag_started_velocity=%d", drag_started_velocity);
                 ImGui::Text("previous_move_offset=%d %d", previous_move_offset.x, previous_move_offset.y);
+                ImGui::Text("offset=%f %f", offset.x, offset.y);
                 ImGui::Text("p: %s", p.debug_print().c_str());
 
                 /*

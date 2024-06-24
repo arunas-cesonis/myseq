@@ -130,14 +130,18 @@ namespace myseq {
         int height;
         int first_note;
         int last_note;
+        V2i cursor;
 
         explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
             grid.resize(width * height);
         }
 
-        Pattern(int id, int width, int height, int first_note, int last_note) : id(id), width(width), height(height),
-                                                                                first_note(first_note),
-                                                                                last_note(last_note) {
+        Pattern(int id, int width, int height, int first_note, int last_note, const V2i &cursor) : id(id), width(width),
+                                                                                                   height(height),
+                                                                                                   first_note(
+                                                                                                           first_note),
+                                                                                                   last_note(last_note),
+                                                                                                   cursor(cursor) {
             grid.resize(width * height);
         }
 
