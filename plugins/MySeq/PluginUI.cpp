@@ -299,7 +299,7 @@ START_NAMESPACE_DISTRHO
         }
 
         static void
-        cursor_interaction(bool &dirty, myseq::Pattern &p) {
+        grid_cursor_interaction(bool &dirty, myseq::Pattern &p) {
             if (ImGui::IsKeyPressed(ImGuiKey_J)) {
                 if (p.cursor.y + 1 < p.height) {
                     p.cursor.y += 1;
@@ -510,6 +510,36 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        void grid_viewport_pan_to_cursor(const ImVec2 &cell_size, const ImVec2 &grid_size, myseq::Pattern &p) {
+            ImVec2 viewport = ImVec2(0.0f, 0.0f) - offset;
+            const auto cursor = ImVec2((float) p.cursor.x * cell_size.x, (float) p.cursor.y * cell_size.y);
+            if (cursor.y < viewport.y) {
+                viewport.y = cursor.y;
+            }
+            if (cursor.y + cell_size.y > viewport.y + grid_size.y) {
+                viewport.y = cursor.y + cell_size.y - grid_size.y;
+            }
+            if (cursor.x < viewport.x) {
+                viewport.x = cursor.x;
+            }
+            if (cursor.x + cell_size.x > viewport.x + grid_size.x) {
+                viewport.x = cursor.x + cell_size.x - grid_size.x;
+            }
+            offset = ImVec2(0.0f, 0.0f) - viewport;
+        }
+
+        void grid_viewport_limit_panning(const ImVec2 &cell_size, const ImVec2 &grid_size, myseq::Pattern &p) {
+            const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.get_width()) - grid_size.x));
+            const auto right = 0.0f;
+            const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.get_height()) - grid_size.y));
+            const auto bottom = 0.0f;
+            if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
+                offset += ImGui::GetIO().MouseDelta;
+            }
+            offset.x = std::clamp(offset.x, left, right);
+            offset.y = std::clamp(offset.y, top, bottom);
+        }
+
         void show_grid(bool &dirty, myseq::Pattern &p) {
             float cell_padding = 4.0;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
@@ -518,20 +548,18 @@ START_NAMESPACE_DISTRHO
             const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
             const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
+            // auto cell_size = ImVec2(cell_width * 2.0f, cell_height);
             auto cell_size = ImVec2(grid_width / (float) p.width, cell_height);
-            // auto cell_size = ImVec2(cell_height, cell_height);
             auto grid_height = cell_size.y * (float) visible_rows;
             const auto grid_size = ImVec2(grid_width, grid_height);
             auto mpos = ImGui::GetMousePos();
-            auto cell = calc_cell(p, cpos, mpos, grid_size, cell_size);
             auto *draw_list = ImGui::GetWindowDrawList();
             auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
             auto alt_held = ImGui::GetIO().KeyAlt;
 
-            cursor_interaction(dirty, p);
-            //auto ofc = offset / cell_size;
-            //offset.y += -1.0f * std::min(0.0f, (float) p.cursor.y + ofc.y) * cell_size.y;
-            // offset.y -= 1.0f * std::max(0.0f, ((float) p.cursor.y + ofc.y) - (float) visible_rows) * cell_size.y;
+            bool cursor_dirty = false;
+            grid_cursor_interaction(cursor_dirty, p);
+            dirty = dirty || cursor_dirty;
 
             const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
             const auto corner2 = corner + ImVec2(grid_width, grid_height) / cell_size;
@@ -589,29 +617,8 @@ START_NAMESPACE_DISTRHO
             draw_list->PopClipRect();
             draw_list->AddRect(cpos, cpos + ImVec2(grid_width, grid_height), border_color);
             ImGui::Dummy(ImVec2(grid_width, grid_height));
-
-            const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.get_width()) - grid_width));
-            const auto right = 0.0f;
-            const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.get_height()) - grid_height));
-            const auto bottom = 0.0f;
-            // const auto cursor_left = p.cursor.x * cell_size.x;
-            // const auto cursor_right = (1.0 + p.cursor.x) * cell_size.x;
-            // const auto cursor_bottom = (1.0 + p.cursor.x) * p.cursor.y * cell_size.y;
-
-            if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
-                offset += ImGui::GetIO().MouseDelta;
-            }
-
-            offset.x = std::clamp(offset.x, left, right);
-            offset.y = std::clamp(offset.y, top, bottom);
-
-            const auto cursor_pos = ImVec2((float) p.cursor.x * cell_size.x, (float) p.cursor.y * cell_size.y);
-            offset.y = std::max(-cursor_pos.y, offset.y);
-            offset.y = std::min(-(cursor_pos.y + grid_size.y * 0.5f - cell_size.y), offset.y);
-
-            ImGui::Text("oy=%f", offset.y);
-            // offset.y = offset.y < -cursor_pos.y ? -cursor_pos.y : offset.y;
-
+            grid_viewport_limit_panning(cell_size, grid_size, p);
+            if (cursor_dirty)grid_viewport_pan_to_cursor(cell_size, grid_size, p);
             grid_interaction(dirty, p, cpos, grid_size, cell_size);
         }
 
