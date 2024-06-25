@@ -300,14 +300,27 @@ START_NAMESPACE_DISTRHO
 
         static void
         grid_cursor_interaction(bool &dirty, myseq::Pattern &p) {
-            if (ImGui::IsKeyPressed(ImGuiKey_J)) {
-                if (p.cursor.y + 1 < p.height) {
-                    p.cursor.y += 1;
+            auto ctrl_held = ImGui::GetIO().KeyCtrl;
+            if (ctrl_held && ImGui::IsKeyPressed(ImGuiKey_U)) {
+                auto amount = std::min(p.cursor.y, 12);
+                if (amount > 0) {
+                    p.cursor.y -= amount;
+                    SET_DIRTY();
+                }
+            } else if (ctrl_held && ImGui::IsKeyPressed(ImGuiKey_D)) {
+                auto amount = std::min(p.height - p.cursor.y - 1, 12);
+                if (amount > 0) {
+                    p.cursor.y += amount;
                     SET_DIRTY();
                 }
             } else if (ImGui::IsKeyPressed(ImGuiKey_K)) {
                 if (p.cursor.y > 0) {
                     p.cursor.y -= 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_J)) {
+                if (p.cursor.y + 1 < p.height) {
+                    p.cursor.y += 1;
                     SET_DIRTY();
                 }
             } else if (ImGui::IsKeyPressed(ImGuiKey_H)) {
@@ -356,6 +369,7 @@ START_NAMESPACE_DISTRHO
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (valid_cell) {
                             p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
+                            p.cursor = cell;
                             SET_DIRTY();
                         }
                     } else {
@@ -528,14 +542,17 @@ START_NAMESPACE_DISTRHO
             offset = ImVec2(0.0f, 0.0f) - viewport;
         }
 
+        void grid_viewport_mouse_pan() {
+            if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
+                offset += ImGui::GetIO().MouseDelta;
+            }
+        }
+
         void grid_viewport_limit_panning(const ImVec2 &cell_size, const ImVec2 &grid_size, myseq::Pattern &p) {
             const auto left = std::min(0.0f, 0.0f - ((cell_size.x * (float) p.get_width()) - grid_size.x));
             const auto right = 0.0f;
             const auto top = std::min(0.0f, 0.0f - ((cell_size.y * (float) p.get_height()) - grid_size.y));
             const auto bottom = 0.0f;
-            if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
-                offset += ImGui::GetIO().MouseDelta;
-            }
             offset.x = std::clamp(offset.x, left, right);
             offset.y = std::clamp(offset.y, top, bottom);
         }
@@ -554,7 +571,7 @@ START_NAMESPACE_DISTRHO
             const auto grid_size = ImVec2(grid_width, grid_height);
             auto mpos = ImGui::GetMousePos();
             auto *draw_list = ImGui::GetWindowDrawList();
-            auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
+            auto default_border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
             auto alt_held = ImGui::GetIO().KeyAlt;
 
             bool cursor_dirty = false;
@@ -579,6 +596,7 @@ START_NAMESPACE_DISTRHO
                     auto p_max = p_min + ImVec2(cell_size.x, cell_size.y) - cell_padding_xy;
                     auto vel = p.get_velocity(loop_cell);
                     auto sel = p.get_selected(loop_cell);
+                    auto has_cursor = p.cursor == loop_cell;
                     auto velocity_fade = ((float) vel) / 127.0f;
                     auto cell_color1 =
                             ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
@@ -594,16 +612,21 @@ START_NAMESPACE_DISTRHO
                     cell_color1.Value.x *= quarter_fade;
                     cell_color1.Value.y *= quarter_fade;
                     cell_color1.Value.z *= quarter_fade;
-                    draw_list->AddRectFilled(p_min, p_max,
-                                             sel ? mono_color(cell_color1) : cell_color1);
+                    draw_list->AddRectFilled(p_min, p_max, cell_color1);
                     // Might make sense instead of checking were
                     // we are and maybe one of the things we need to draw is here
                     // draw things that are visible and necessary to draw
-                    if (p.cursor == loop_cell) {
-                        draw_list->AddRect(p_min, p_max, IM_COL32_WHITE);
-                    } else {
+                    ImColor border_color;
+                    if (has_cursor) {
+                        border_color = IM_COL32(0xaa, 0xaa, 0xaa, 0xff);
                         draw_list->AddRect(p_min, p_max, border_color);
-                    }
+                    } else if (sel) {
+                        border_color = IM_COL32(0xa0, 0xa0, 0xa0, 0xff);
+                        draw_list->AddRect(p_min, p_max, border_color);
+                    } else {
+                        border_color = default_border_color;
+                    };
+                    //draw_list->AddRect(p_min, p_max, border_color);
 
                     auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
@@ -615,10 +638,12 @@ START_NAMESPACE_DISTRHO
             }
 
             draw_list->PopClipRect();
-            draw_list->AddRect(cpos, cpos + ImVec2(grid_width, grid_height), border_color);
+            draw_list->AddRect(cpos, cpos + ImVec2(grid_width, grid_height), default_border_color);
             ImGui::Dummy(ImVec2(grid_width, grid_height));
+            //
+            grid_viewport_mouse_pan();
             grid_viewport_limit_panning(cell_size, grid_size, p);
-            if (cursor_dirty)grid_viewport_pan_to_cursor(cell_size, grid_size, p);
+            if (cursor_dirty) grid_viewport_pan_to_cursor(cell_size, grid_size, p);
             grid_interaction(dirty, p, cpos, grid_size, cell_size);
         }
 
@@ -641,6 +666,9 @@ START_NAMESPACE_DISTRHO
             bool duplicate = false;
             if (state.num_patterns() == 0) {
                 state.selected = state.create_pattern().id;
+                auto &cur = state.get_selected_pattern().cursor;
+                cur.x = 0;
+                cur.y = 127 - 24;
                 SET_DIRTY();
             }
             auto &p = state.get_selected_pattern();
