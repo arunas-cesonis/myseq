@@ -65,9 +65,9 @@ START_NAMESPACE_DISTRHO
         ImVec2 drag_started_mpos;
         int count = 0;
         ImVec2 offset;
-        static constexpr int visible_rows = 20;
+        static constexpr int visible_rows = 10;
         float cell_width = 40.0f;
-        float cell_height = 20.0f;
+        float cell_height = 40.0f;
 
         bool show_metrics = false;
 
@@ -557,6 +557,23 @@ START_NAMESPACE_DISTRHO
             offset.y = std::clamp(offset.y, top, bottom);
         }
 
+        static bool is_black_key(int note) {
+            switch (note % 12) {
+                case 1:
+                    return true;
+                case 3:
+                    return true;
+                case 6:
+                    return true;
+                case 8:
+                    return true;
+                case 10:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         void show_grid(bool &dirty, myseq::Pattern &p) {
             float cell_padding = 4.0;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
@@ -592,7 +609,7 @@ START_NAMESPACE_DISTRHO
                     auto loop_cell = V2i(j, i);
                     auto p_min = ImVec2(cell_size.x * (float) loop_cell.x,
                                         cell_size.y * (float) loop_cell.y) +
-                                 offset + cpos;
+                                 offset + cpos + cell_padding_xy;
                     auto p_max = p_min + ImVec2(cell_size.x, cell_size.y) - cell_padding_xy;
                     auto vel = p.get_velocity(loop_cell);
                     auto sel = p.get_selected(loop_cell);
@@ -600,8 +617,10 @@ START_NAMESPACE_DISTRHO
                     auto velocity_fade = ((float) vel) / 127.0f;
                     auto cell_color1 =
                             ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
+                    auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                     //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
-                    auto quarter_fade = (j / 4) % 2 == 0 ? 1.0f : 0.8f;
+                    // auto quarter_fade = is_black_key(note) ? 0.8f : 1.f;
+                    auto quarter_fade = (j % 4 == 0) ? 0.8f : 1.f;
 
                     if (interaction == Interaction::MovingCells) {
                         if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
@@ -628,7 +647,6 @@ START_NAMESPACE_DISTRHO
                     };
                     //draw_list->AddRect(p_min, p_max, border_color);
 
-                    auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
                         draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
                     } else if (vel > 0 && sel) {
