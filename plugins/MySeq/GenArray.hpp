@@ -141,13 +141,13 @@ struct GenArray {
 
     void verify_id(const Id &id) const {
         if (!exist(id)) {
-            throw std::runtime_error("Invalid id");
+            throw std::runtime_error("verify_id: does not exist");
         }
     }
 
     void verify_index(const int index) const {
         if (index >= data.size() || index < 0 || !data[index].has_value()) {
-            throw std::runtime_error("Invalid id");
+            throw std::runtime_error("verify_index: does not exist");
         }
     }
 

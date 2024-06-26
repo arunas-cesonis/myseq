@@ -228,6 +228,14 @@ namespace myseq {
             get_create_if_not_exists(v).velocity = velocity;
         }
 
+        [[nodiscard]] bool is_active(const V2i &v) const {
+            if (exists(v)) {
+                return get_cell(v).velocity > 0;
+            } else {
+                return false;
+            }
+        }
+
         [[nodiscard]] uint8_t get_velocity(const V2i &v) const {
             if (exists(v)) {
                 return get_cell(v).velocity;

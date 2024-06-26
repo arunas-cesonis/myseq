@@ -86,6 +86,7 @@ START_NAMESPACE_DISTRHO
             AdjustingVelocity,
             KeysSelect,
             DragSelectingCells,
+            RectSelectingCells,
             MovingCells
         };
         Interaction interaction = Interaction::None;
@@ -139,6 +140,8 @@ START_NAMESPACE_DISTRHO
                     return "KeysSelect";
                 case Interaction::DragSelectingCells:
                     return "DragSelectingCells";
+                case Interaction::RectSelectingCells:
+                    return "RectSelectingCells";
                 case Interaction::MovingCells:
                     return "MovingCells";
             }
@@ -372,11 +375,11 @@ START_NAMESPACE_DISTRHO
             auto shift_held = ImGui::GetIO().KeyShift;
             auto mpos = ImGui::GetMousePos();
             auto cell = calc_cell(p, grid_cpos, mpos, grid_size, cell_size);
-            auto valid_cell = cell.x >= 0 && cell.y >= 0;
+            auto cursor_hovers_grid = cell.x >= 0 && cell.y >= 0;
             switch (interaction) {
                 case Interaction::DrawingCells: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                        if (valid_cell) {
+                        if (cursor_hovers_grid) {
                             p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
                             p.cursor = cell;
                             SET_DIRTY();
@@ -388,7 +391,7 @@ START_NAMESPACE_DISTRHO
                 }
                 case Interaction::AdjustingVelocity: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                        if (valid_cell) {
+                        if (cursor_hovers_grid) {
                             auto delta_y = mpos.y - drag_started_mpos.y;
                             auto new_vel = (uint8_t) clamp(
                                     (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
@@ -410,7 +413,7 @@ START_NAMESPACE_DISTRHO
                 }
                 case Interaction::MovingCells:
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                        if (valid_cell) {
+                        if (cursor_hovers_grid) {
                             const auto move_offset = cell - drag_started_cell;
                             if (previous_move_offset != move_offset) {
                                 int left = 0;
@@ -463,10 +466,26 @@ START_NAMESPACE_DISTRHO
                         interaction = Interaction::None;
                     }
                     break;
+                case Interaction::RectSelectingCells:
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && shift_held) {
+                        //
+                    } else {
+                        const auto rect = rect_selecting(mpos);
+                        const auto c1 = calc_cell(p, grid_cpos, rect.first, grid_size, cell_size);
+                        const auto c2 = calc_cell(p, grid_cpos, rect.second, grid_size, cell_size);
+                        for (int x = c1.x; x <= c2.x; x++) {
+                            for (int y = c1.y; y <= c2.y; y++) {
+                                p.set_selected(V2i(x, y), true);
+                            }
+                        }
+                        SET_DIRTY();
+                        interaction = Interaction::None;
+                    }
+                    break;
                 case Interaction::DragSelectingCells:
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && shift_held) {
                         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                            if (valid_cell) {
+                            if (cursor_hovers_grid) {
                                 p.set_selected(cell, !drag_started_selected);
                                 SET_DIRTY();
                             }
@@ -474,11 +493,11 @@ START_NAMESPACE_DISTRHO
                     } else {
                         interaction = Interaction::None;
                     }
-                    break;
+
 
                 case Interaction::None:
                     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                        if (valid_cell) {
+                        if (cursor_hovers_grid) {
                             if (ctrl_held) {
                                 interaction = Interaction::AdjustingVelocity;
                                 drag_started_velocity = p.get_velocity(cell);
@@ -490,10 +509,15 @@ START_NAMESPACE_DISTRHO
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
                             } else if (shift_held) {
-                                drag_started_selected = p.get_selected(cell);
-                                p.set_selected(cell, !drag_started_selected);
-                                interaction = Interaction::DragSelectingCells;
-                                SET_DIRTY();
+                                if (p.is_active(cell)) {
+                                    drag_started_selected = p.get_selected(cell);
+                                    p.set_selected(cell, !drag_started_selected);
+                                    interaction = Interaction::DragSelectingCells;
+                                    SET_DIRTY();
+                                } else {
+                                    drag_started_mpos = mpos;
+                                    interaction = Interaction::RectSelectingCells;
+                                }
                             } else if (p.get_selected(cell)) {
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
@@ -511,7 +535,7 @@ START_NAMESPACE_DISTRHO
                                 SET_DIRTY();
                             }
                         } else {
-                            SET_DIRTY();
+                            // else { SET_DIRTY();}  // <-- why was this here?
                         }
                     } else {
                         if (cmd_held) {
@@ -671,6 +695,11 @@ START_NAMESPACE_DISTRHO
                 }
             }
 
+            if (interaction == Interaction::RectSelectingCells) {
+                const auto rect = rect_selecting(mpos);
+                draw_list->AddRect(rect.first, rect.second, active_cell);
+            }
+
             draw_list->PopClipRect();
             draw_list->AddRect(cpos, cpos + ImVec2(grid_width, grid_height), default_border_color);
             ImGui::Dummy(ImVec2(grid_width, grid_height));
@@ -679,6 +708,12 @@ START_NAMESPACE_DISTRHO
             grid_viewport_limit_panning(cell_size, grid_size, p);
             if (cursor_dirty) grid_viewport_pan_to_cursor(cell_size, grid_size, p);
             grid_interaction(dirty, p, cpos, grid_size, cell_size);
+        }
+
+        [[nodiscard]] std::pair<ImVec2, ImVec2> rect_selecting(const ImVec2 &mpos) const {
+            auto rect_min = ImVec2(std::min(drag_started_mpos.x, mpos.x), std::min(drag_started_mpos.y, mpos.y));
+            auto rect_max = ImVec2(std::max(drag_started_mpos.x, mpos.x), std::max(drag_started_mpos.y, mpos.y));
+            return {rect_min, rect_max};
         }
 
         void onImGuiDisplay() override {
