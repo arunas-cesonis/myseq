@@ -163,7 +163,7 @@ namespace myseq {
                                                                               : step_end_time;
 
                                 // This check prevents 0-length notes being played when input note ends
-                                // exactly at the end of the step and just before the beggining of the next step
+                                // exactly at the end of the step and just before the beginning of the next step
                                 // I believe this is caused by either note starting time calculation or
                                 // pattern end time calculation being incorrect (or both)
                                 // 1.0 here represents 1 MIDI tick which is supposed to be the smallest possible note length

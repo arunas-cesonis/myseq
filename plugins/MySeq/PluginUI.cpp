@@ -24,14 +24,14 @@ START_NAMESPACE_DISTRHO
         return std::min(std::max(value, min), max);
     }
 
-    // ImColor clamp_color(ImColor color) {
-    //     return {
-    //             clamp(color.Value.x, 0.0f, 1.0f),
-    //             clamp(color.Value.y, 0.0f, 1.0f),
-    //             clamp(color.Value.z, 0.0f, 1.0f),
-    //             clamp(color.Value.w, 0.0f, 1.0f)
-    //     };
-    // }
+    ImColor clamp_color(ImColor color) {
+        return {
+                clamp(color.Value.x, 0.0f, 1.0f),
+                clamp(color.Value.y, 0.0f, 1.0f),
+                clamp(color.Value.z, 0.0f, 1.0f),
+                clamp(color.Value.w, 0.0f, 1.0f)
+        };
+    }
 
     ImColor mono_color(ImColor color) {
         auto avg = (color.Value.x + color.Value.y + color.Value.z) / 3.0f;
@@ -39,6 +39,15 @@ START_NAMESPACE_DISTRHO
                 avg,
                 avg,
                 avg,
+                color.Value.w
+        };
+    }
+
+    ImColor add_to_rgb(ImColor color, float amount) {
+        return {
+                color.Value.x + amount,
+                color.Value.y + amount,
+                color.Value.z + amount,
                 color.Value.w
         };
     }
@@ -67,7 +76,7 @@ START_NAMESPACE_DISTRHO
         ImVec2 offset;
         static constexpr int visible_rows = 20;
         float cell_width = 30.0f;
-        float cell_height = 30.0f;
+        float cell_height = 24.0f;
 
         bool show_metrics = false;
 
@@ -615,22 +624,29 @@ START_NAMESPACE_DISTRHO
                     auto sel = p.get_selected(loop_cell);
                     auto has_cursor = p.cursor == loop_cell;
                     auto velocity_fade = ((float) vel) / 127.0f;
-                    auto cell_color1 =
-                            ImColor(ImLerp(inactive_cell.Value, active_cell.Value, velocity_fade));
+                    ImColor cell_color1;
+                    if (vel > 0) {
+                        cell_color1 = ImColor(ImLerp(ImColor(IM_COL32_BLACK).Value, active_cell.Value, velocity_fade));
+                        if (sel) {
+                            cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
+                        }
+                    } else {
+                        auto quarter_fade = (j % 4 == 0) ? 0.8f : 1.f;
+                        cell_color1 = inactive_cell;
+                        cell_color1.Value.x *= quarter_fade;
+                        cell_color1.Value.y *= quarter_fade;
+                        cell_color1.Value.z *= quarter_fade;
+                    }
+
                     auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                     //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
                     // auto quarter_fade = is_black_key(note) ? 0.8f : 1.f;
-                    auto quarter_fade = (j % 4 == 0) ? 0.8f : 1.f;
-
                     if (interaction == Interaction::MovingCells) {
                         if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
                             cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
                         }
                     }
 
-                    cell_color1.Value.x *= quarter_fade;
-                    cell_color1.Value.y *= quarter_fade;
-                    cell_color1.Value.z *= quarter_fade;
                     draw_list->AddRectFilled(p_min, p_max, cell_color1);
                     // Might make sense instead of checking were
                     // we are and maybe one of the things we need to draw is here
@@ -650,7 +666,7 @@ START_NAMESPACE_DISTRHO
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
                         draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
                     } else if (vel > 0 && sel) {
-                        draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
+                        //draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
                     }
                 }
             }
