@@ -348,8 +348,37 @@ namespace myseq {
             }
         }
 
+        // chooses a range of 16 notes that start with unused note
+        // or just returns the lowest range of 16 notes
+        // this allows creation of ~7 patterns that
+        // are conveniently placed at the beginning of octaves
+        // by far not ideal solution; need to use the sequencer more to
+        // understand what is the best way to handle this
+        [[nodiscard]] std::pair<int, int> try_find_free_16_range() const {
+            int used[128]{};
+            for (auto &p: patterns) {
+                d_debug("pattern %d %d %d", p.id, p.first_note, p.last_note);
+                for (int i = p.first_note; i <= p.last_note; i++) {
+                    used[i]++;
+                }
+            }
+            const int convenient_starts[] = {0, 24, 48, 72, 96};
+            for (int convenient_start: convenient_starts) {
+                if (used[convenient_start] == 0) {
+                    return {convenient_start, convenient_start + 15};
+                }
+            }
+            return {0, 15};
+        }
+
         Pattern &create_pattern() {
-            return patterns.emplace_back(next_unused_id());
+            Pattern p = Pattern(next_unused_id());
+            const auto range = try_find_free_16_range();
+            p.first_note = range.first;
+            p.last_note = range.second;
+            patterns.push_back(p);
+            d_debug("credate %d %d", p.first_note, p.last_note);
+            return patterns.back();
         }
 
         Pattern &duplicate_pattern(int id) {
