@@ -380,14 +380,7 @@ START_NAMESPACE_DISTRHO
                         + (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : 0);
                 const V2i d(dx, dy);
                 if (d != V2i(0, 0)) {
-                    std::vector<std::pair<V2i, myseq::Cell>> removed;
-                    p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
-                        removed.emplace_back(v, c);
-                        p.clear_cell(v);
-                    });
-                    for (auto pair: removed) {
-                        p.set_cell(pair.first + d, pair.second);
-                    }
+                    p.move_selected_cells(d);
                     SET_DIRTY();
                 }
             }
@@ -476,15 +469,7 @@ START_NAMESPACE_DISTRHO
                         }
                     } else {
                         if (previous_move_offset != V2i(0, 0)) {
-                            std::vector<std::pair<V2i, myseq::Cell>> removed;
-                            for (const auto &v: moving_cells_set) {
-                                removed.push_back({v, p.get_cell(v)});
-                                p.clear_cell(v);
-                            }
-                            for (auto pair: removed) {
-                                p.set_cell(pair.first + previous_move_offset, pair.second);
-                            }
-                            moving_cells_set.clear();
+                            p.move_selected_cells(previous_move_offset);
                             SET_DIRTY();
                         }
                         interaction = Interaction::None;

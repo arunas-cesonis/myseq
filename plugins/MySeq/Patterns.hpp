@@ -210,6 +210,23 @@ namespace myseq {
             cells.remove(grid[coords_to_index(coords)]);
         }
 
+        void move_selected_cells(const V2i &delta) {
+            std::vector<std::pair<Cell, V2i>> removed;
+            each_selected_cell([&](const Cell &cell, const V2i &v) {
+                removed.emplace_back(cell, v);
+                clear_cell(v);
+            });
+            for (const auto &pair: removed) {
+                auto new_coords = pair.second + delta;
+                // wrap around
+                new_coords.x = new_coords.x % width;
+                new_coords.x += new_coords.x < 0 ? width : 0;
+                new_coords.y = new_coords.y % height;
+                new_coords.y += new_coords.y < 0 ? height : 0;
+                set_cell(new_coords, pair.first);
+            }
+        }
+
         int deselect_all() {
             int count = 0;
             for (auto &c: cells) {
