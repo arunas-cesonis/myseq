@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <unordered_set>
+#include <boost/interprocess/ipc/message_queue.hpp>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
 #include "Patterns.hpp"
@@ -77,6 +78,8 @@ START_NAMESPACE_DISTRHO
         static constexpr int visible_rows = 20;
         float cell_width = 30.0f;
         float cell_height = 24.0f;
+        boost::interprocess::message_queue mq;
+        std::vector<std::string> mq_log;
 
         bool show_metrics = false;
 
@@ -97,7 +100,8 @@ START_NAMESPACE_DISTRHO
            The UI should be initialized to a default state that matches the plugin side.
          */
         MySeqUI()
-                : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
+                : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT),
+                  mq(boost::interprocess::open_only, "myseq") {
             const double scaleFactor = getScaleFactor();
 
             myseq::test_serialize();
@@ -313,6 +317,7 @@ START_NAMESPACE_DISTRHO
         static void
         grid_cursor_interaction(bool &dirty, myseq::Pattern &p) {
             auto ctrl_held = ImGui::GetIO().KeyCtrl;
+            auto shift_held = ImGui::GetIO().KeyShift;
             if (ctrl_held && ImGui::IsKeyPressed(ImGuiKey_U)) {
                 auto amount = std::min(p.cursor.y, 12);
                 if (amount > 0) {
@@ -361,6 +366,30 @@ START_NAMESPACE_DISTRHO
                 p.set_velocity(p.cursor, new_v);
                 p.cursor.x = p.cursor.x + 1 < p.width ? p.cursor.x + 1 : 0;
                 SET_DIRTY();
+            } else {
+                const int updown = shift_held ? 12 : 1;
+                const int dy =
+                        (ImGui::IsKeyPressed(ImGuiKey_W) ? -updown : 0)
+                        + (ImGui::IsKeyPressed(ImGuiKey_S) ? updown : 0)
+                        + (ImGui::IsKeyPressed(ImGuiKey_UpArrow) ? -updown : 0)
+                        + (ImGui::IsKeyPressed(ImGuiKey_DownArrow) ? updown : 0);
+                const int dx =
+                        (ImGui::IsKeyPressed(ImGuiKey_A) ? -1 : 0)
+                        + (ImGui::IsKeyPressed(ImGuiKey_D) ? 1 : 0)
+                        + (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? -1 : 0)
+                        + (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : 0);
+                const V2i d(dx, dy);
+                if (d != V2i(0, 0)) {
+                    std::vector<std::pair<V2i, myseq::Cell>> removed;
+                    p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
+                        removed.emplace_back(v, c);
+                        p.clear_cell(v);
+                    });
+                    for (auto pair: removed) {
+                        p.set_cell(pair.first + d, pair.second);
+                    }
+                    SET_DIRTY();
+                }
             }
         }
 
@@ -478,7 +507,7 @@ START_NAMESPACE_DISTRHO
                                 p.set_selected(V2i(x, y), true);
                             }
                         }
-                        SET_DIRTY();
+                        SET_DIRTY()
                         interaction = Interaction::None;
                     }
                     break;
@@ -723,7 +752,8 @@ START_NAMESPACE_DISTRHO
             int window_flags =
                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
                     | ImGuiWindowFlags_NoScrollWithMouse
-                    | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize;
+                    | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize
+                    | ImGuiWindowFlags_NoNavInputs;
 
             const ImGuiViewport *viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->Pos);
@@ -764,7 +794,7 @@ START_NAMESPACE_DISTRHO
                 }
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-                if (ImGui::BeginTable("##patterns_table", 4, patterns_table_flags)) {
+                if (ImGui::BeginTable("##patterns_table", 4, patterns_table_flags, ImVec2(0, 200))) {
                     ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
                     ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
                     ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 2);
@@ -811,6 +841,29 @@ START_NAMESPACE_DISTRHO
                     });
                     ImGui::EndTable();
                 }
+
+                if (ImGui::BeginChild("logscroll", ImVec2(0, 200), true, ImGuiWindowFlags_HorizontalScrollbar)) {
+                    ImGuiListClipper clipper;
+
+                    ImGui::SetScrollY(ImGui::GetScrollMaxY());
+
+                    char buffer[1024];
+                    std::size_t received = 0;
+                    unsigned int priority;
+                    while (mq.try_receive(buffer, sizeof(buffer), received, priority)) {
+                        mq_log.push_back(std::string(buffer));
+                    }
+
+                    clipper.Begin((int) mq_log.size());
+
+                    while (clipper.Step()) {
+                        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
+                            ImGui::Text("%s", mq_log[i].c_str());
+                        }
+                    }
+                    clipper.End();
+                }
+                ImGui::EndChild();
 
                 ImGui::EndGroup();
 

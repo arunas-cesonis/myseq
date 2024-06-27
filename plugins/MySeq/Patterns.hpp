@@ -301,6 +301,8 @@ namespace myseq {
     struct State {
         std::vector<Pattern> patterns;
 
+        State() = default;
+
         [[nodiscard]] const Pattern *first_pattern_with_note(Note note) const {
             auto it = patterns.begin();
             while (it != patterns.end() && !(it->first_note <= note.note && note.note <= it->last_note)) {
@@ -326,7 +328,7 @@ namespace myseq {
 
         int selected = -1;
 
-        State() = default;
+        //State() = default;
 
         [[nodiscard]] Opaque to_json() const;
 

@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <map>
+#include <iomanip>
 #include <boost/interprocess/ipc/message_queue.hpp>
 #include "DistrhoPlugin.hpp"
 #include "Patterns.hpp"
@@ -14,6 +15,8 @@
 #include "TimePositionCalc.hpp"
 
 START_NAMESPACE_DISTRHO
+
+    std::string gen_unique_id();
 
     class MySeqPlugin : public Plugin {
     public:
@@ -25,10 +28,11 @@ START_NAMESPACE_DISTRHO
         myseq::State state;
         TimePosition last_time_position;
         int iteration = 0;
+        boost::interprocess::message_queue mq;
 
         MySeqPlugin()
-                : Plugin(0, 0, 1) // parameters, programs, states
-        {
+                : Plugin(0, 0, 1),
+                  mq(boost::interprocess::open_or_create, "myseq", 100, 1024) {
             myseq::Test::test_player_run();
         }
 
@@ -84,6 +88,11 @@ START_NAMESPACE_DISTRHO
                                           ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
             for (auto i = 0; i < (int) midiEventCount; i++) {
                 auto &ev = midiEvents[i];
+
+                char buffer[1024]{};
+                std::snprintf(buffer, 1024, "%d", ev.size);
+                mq.send(buffer, std::strlen(buffer) + 1, 0);
+
                 std::optional<myseq::NoteMessage> msg = myseq::NoteMessage::parse(ev.data);
                 if (msg.has_value()) {
                     const auto &v = msg.value();
@@ -213,9 +222,8 @@ START_NAMESPACE_DISTRHO
         }
 
 
-        // ----------------------------------------------------------------------------------------------------------------
-
-    DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MySeqPlugin)
+        /* ---------------------------------------------------------------------------------------------------------------- */ DISTRHO_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(
+            MySeqPlugin)
     };
 
 END_NAMESPACE_DISTRHO
