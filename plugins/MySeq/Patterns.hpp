@@ -115,12 +115,15 @@ namespace myseq {
         std::valarray<Id> grid;
 
         [[nodiscard]] V2i index_to_coords(int index) const {
+            assert(index < width * height);
             const auto x = index / height;
             const auto y = index % height;
             return {x, y};
         }
 
         [[nodiscard]] int coords_to_index(const V2i &v) const {
+            assert(v.x >= 0 && v.x < width);
+            assert(v.y >= 0 && v.y < height);
             return v.x * height + v.y;
         }
 
