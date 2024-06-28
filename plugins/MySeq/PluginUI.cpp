@@ -543,7 +543,7 @@ START_NAMESPACE_DISTRHO
                         for (int x = c1.x; x <= c2.x; x++) {
                             for (int y = c1.y; y <= c2.y; y++) {
                                 const auto v = V2i(x, y);
-                                p.set_selected(v, !p.get_selected(v));
+                                p.set_selected(v, true);
                             }
                         }
                         SET_DIRTY()
@@ -576,6 +576,15 @@ START_NAMESPACE_DISTRHO
                                 });
                                 drag_started_mpos = mpos;
                                 drag_started_cell = cell;
+                            } else if (p.get_selected(cell)) {
+                                drag_started_mpos = mpos;
+                                drag_started_cell = cell;
+                                previous_move_offset = V2i(0, 0);
+                                moving_cells_set.clear();
+                                p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
+                                    moving_cells_set.insert(v);
+                                });
+                                interaction = Interaction::MovingCells;
                             } else if (input_mode == InputMode::Selecting || shift_held) {
                                 p.cursor = cell;
                                 if (p.is_active(cell)) {
@@ -587,15 +596,6 @@ START_NAMESPACE_DISTRHO
                                     interaction = Interaction::RectSelectingCells;
                                 }
                                 SET_DIRTY();
-                            } else if (p.get_selected(cell)) {
-                                drag_started_mpos = mpos;
-                                drag_started_cell = cell;
-                                previous_move_offset = V2i(0, 0);
-                                moving_cells_set.clear();
-                                p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
-                                    moving_cells_set.insert(v);
-                                });
-                                interaction = Interaction::MovingCells;
                             } else {
                                 interaction = Interaction::DrawingCells;
                                 drag_started_velocity = p.get_velocity(cell);
