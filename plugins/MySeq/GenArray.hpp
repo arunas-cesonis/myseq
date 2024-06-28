@@ -208,6 +208,15 @@ struct GenArray {
         return it2;
     }
 
+    iterator erase(const iterator &first, const iterator &last) {
+        if (first == last) {
+            return first;
+        }
+        auto it = first;
+        while (it != last) it = erase(it);
+        return it;
+    }
+
     Id push(T x) {
         if (!free.empty()) {
             int index = free.back();

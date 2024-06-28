@@ -25,7 +25,7 @@ FILES_UI = \
 
 include ../../dpf/Makefile.plugins.mk
 
-BUILD_CXX_FLAGS += -I../../dpf-widgets/opengl -I/opt/homebrew/include -std=gnu++17
+BUILD_CXX_FLAGS += -I../../dpf-widgets/opengl -I/opt/homebrew/include -std=gnu++17 -DDPF_CAPTURE_CONSOLE_OUTPUT
 
 # --------------------------------------------------------------
 # Enable all possible plugin types

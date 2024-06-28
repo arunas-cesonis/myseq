@@ -128,9 +128,11 @@ START_NAMESPACE_DISTRHO
         }
 
         int publish_count = 0;
+        int publish_last_bytes = 0;
 
         void publish() {
             auto s = state.to_json_string();
+            publish_last_bytes = s.length();
             setState("pattern", s.c_str());
 // #ifdef DEBUG
             state = myseq::State::from_json_string(s.c_str());
@@ -442,8 +444,6 @@ START_NAMESPACE_DISTRHO
         grid_interaction(bool &dirty, myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size,
                          const ImVec2 &cell_size
         ) {
-            auto before = interaction;
-
             auto ctrl_held = ImGui::GetIO().KeyCtrl;
             auto cmd_held = 0 != (ImGui::GetIO().KeyMods & ImGuiMod_Super);
             auto shift_held = ImGui::GetIO().KeyShift;
@@ -454,9 +454,12 @@ START_NAMESPACE_DISTRHO
                 case Interaction::DrawingCells: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (cursor_hovers_grid) {
-                            p.set_velocity(cell, drag_started_velocity == 0 ? 127 : 0);
-                            p.cursor = cell;
-                            SET_DIRTY();
+                            auto have = p.get_velocity(cell);
+                            uint8_t want = drag_started_velocity == 0 ? 127 : 0;
+                            if (have != want) {
+                                p.set_velocity(cell, want);
+                                SET_DIRTY();
+                            }
                         }
                     } else {
                         interaction = Interaction::None;
@@ -620,8 +623,6 @@ START_NAMESPACE_DISTRHO
                             SET_DIRTY();
                         }
                     }
-            }
-            if (interaction != before) {
             }
         }
 
@@ -937,10 +938,11 @@ START_NAMESPACE_DISTRHO
                 p.each_selected_cell([&selected_cells_count](const myseq::Cell &c, const V2i &v) {
                     selected_cells_count += 1;
                 });
+                ImGui::Text("publish_count=%d", publish_count);
+                ImGui::Text("publish_last_bytes=%d", publish_last_bytes);
                 ImGui::Text("input_mode=%s", input_mode_to_string(input_mode));
                 ImGui::Text("selected_cells count=%d", selected_cells_count);
                 ImGui::Text("clipboard.size=%lu", clipboard.size());
-                ImGui::Text("publish_count=%d", publish_count);
                 ImGui::Text("drag_started_velocity=%d", drag_started_velocity);
                 ImGui::Text("previous_move_offset=%d %d", previous_move_offset.x, previous_move_offset.y);
                 ImGui::Text("offset=%f %f", offset.x, offset.y);

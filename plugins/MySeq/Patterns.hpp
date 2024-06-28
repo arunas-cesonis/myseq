@@ -7,6 +7,7 @@
 
 #include <map>
 #include <valarray>
+#include <algorithm>
 #include <sstream>
 #include <iostream>
 #include <cassert>
@@ -300,6 +301,13 @@ namespace myseq {
             for (std::size_t i = 0; i < n; i++) {
                 new_grid[i] = grid[i];
             }
+
+            if (new_width < width) {
+                cells.erase(std::remove_if(cells.begin(), cells.end(), [new_width](const auto &pair) -> bool {
+                    return pair.first.x >= new_width;
+                }), cells.end());
+            }
+
             grid = new_grid;
             width = new_width;
         }
