@@ -19,6 +19,15 @@ START_NAMESPACE_DISTRHO
     static const char *NOTES[] =
             {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", nullptr,};
 
+    struct SelectionRectangle {
+        ImVec2 p_min;
+        ImVec2 p_max;
+        V2i cell_min;
+        V2i cell_max;
+
+        SelectionRectangle() = default;
+    };
+
     template<typename T>
     T clamp(T value, T min, T max) {
         return std::min(std::max(value, min), max);
@@ -96,7 +105,7 @@ START_NAMESPACE_DISTRHO
             Drawing,
             Selecting
         };
-        InputMode input_mode = InputMode::Selecting;
+        InputMode input_mode = InputMode::Drawing;
 
 
         /**
@@ -452,6 +461,10 @@ START_NAMESPACE_DISTRHO
                         if (cursor_hovers_grid) {
                             auto have = p.get_velocity(cell);
                             uint8_t want = drag_started_velocity == 0 ? 127 : 0;
+                            if (p.cursor != cell) {
+                                p.cursor = cell;
+                                SET_DIRTY();
+                            }
                             if (have != want) {
                                 p.set_velocity(cell, want);
                                 SET_DIRTY();
@@ -536,16 +549,14 @@ START_NAMESPACE_DISTRHO
                         (shift_held || input_mode == InputMode::Selecting)) {
                         //
                     } else {
-                        const auto rect = rect_selecting(mpos);
-                        const auto c1 = calc_cell(p, grid_cpos, rect.first, grid_size, cell_size);
-                        const auto c2 = calc_cell(p, grid_cpos, rect.second, grid_size, cell_size);
+                        const auto sr = selection_rectangle(p, mpos, grid_cpos, grid_size, cell_size);
                         p.deselect_all();
-                        for (int x = c1.x; x <= c2.x; x++) {
-                            for (int y = c1.y; y <= c2.y; y++) {
+                        for (int x = sr.cell_min.x; x <= sr.cell_max.x; x++)
+                            for (int y = sr.cell_min.y; y <= sr.cell_max.y; y++) {
                                 const auto v = V2i(x, y);
                                 p.set_selected(v, true);
                             }
-                        }
+
                         SET_DIRTY()
                         interaction = Interaction::None;
                     }
@@ -781,9 +792,18 @@ START_NAMESPACE_DISTRHO
         }
 
         [[nodiscard]] std::pair<ImVec2, ImVec2> rect_selecting(const ImVec2 &mpos) const {
-            auto rect_min = ImVec2(std::min(drag_started_mpos.x, mpos.x), std::min(drag_started_mpos.y, mpos.y));
-            auto rect_max = ImVec2(std::max(drag_started_mpos.x, mpos.x), std::max(drag_started_mpos.y, mpos.y));
-            return {rect_min, rect_max};
+            auto p_min = ImVec2(std::min(drag_started_mpos.x, mpos.x), std::min(drag_started_mpos.y, mpos.y));
+            auto p_max = ImVec2(std::max(drag_started_mpos.x, mpos.x), std::max(drag_started_mpos.y, mpos.y));
+            return {p_min, p_max};
+        }
+
+        [[nodiscard]] SelectionRectangle
+        selection_rectangle(const myseq::Pattern &p, const ImVec2 &mpos, const ImVec2 &grid_cpos,
+                            const ImVec2 &grid_size, const ImVec2 &cell_size) const {
+            const auto rect = rect_selecting(mpos);
+            const auto cell_min = calc_cell(p, grid_cpos, rect.first, grid_size, cell_size);
+            const auto cell_max = calc_cell(p, grid_cpos, rect.second, grid_size, cell_size);
+            return {rect.first, rect.second, cell_min, cell_max};
         }
 
         void onImGuiDisplay() override {
