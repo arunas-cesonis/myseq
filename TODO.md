@@ -1,3 +1,4 @@
+- [ ] Buttons to x2 :2
 - [ ] Deselect when clicking away
 - [ ] State gets stuck: {"selected":0,"patterns":[{"width":32,"id":0,"height":128,"first_note":0,"last_note":15,"
   cursor_x":0,"cursor_y":91,"

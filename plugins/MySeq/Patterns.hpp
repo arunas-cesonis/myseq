@@ -127,9 +127,12 @@ namespace myseq {
             return {x, y};
         }
 
+        [[nodiscard]] bool is_valid_coords(const V2i &v) const {
+            return v.x >= 0 && v.x < width && v.y >= 0 && v.y < height;
+        }
+
         [[nodiscard]] int coords_to_index(const V2i &v) const {
-            assert(v.x >= 0 && v.x < width);
-            assert(v.y >= 0 && v.y < height);
+            assert(is_valid_coords(v));
             return v.x * height + v.y;
         }
 
@@ -185,6 +188,9 @@ namespace myseq {
         }
 
         [[nodiscard]] bool exists(const V2i &coords) const {
+            if (!is_valid_coords(coords)) {
+                return false;
+            }
             return cells.exist(grid[coords_to_index(coords)]);
         }
 

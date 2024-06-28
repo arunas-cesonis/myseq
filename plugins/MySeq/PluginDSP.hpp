@@ -8,7 +8,6 @@
 #include <cassert>
 #include <map>
 #include <iomanip>
-#include <boost/interprocess/ipc/message_queue.hpp>
 #include "DistrhoPlugin.hpp"
 #include "Patterns.hpp"
 #include "Player.hpp"
@@ -28,11 +27,9 @@ START_NAMESPACE_DISTRHO
         myseq::State state;
         TimePosition last_time_position;
         int iteration = 0;
-        boost::interprocess::message_queue mq;
 
         MySeqPlugin()
-                : Plugin(0, 0, 1),
-                  mq(boost::interprocess::open_or_create, "myseq", 100, 1024) {
+                : Plugin(0, 0, 1) {
             myseq::Test::test_player_run();
         }
 
@@ -88,10 +85,6 @@ START_NAMESPACE_DISTRHO
                                           ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
             for (auto i = 0; i < (int) midiEventCount; i++) {
                 auto &ev = midiEvents[i];
-
-                char buffer[1024]{};
-                std::snprintf(buffer, 1024, "%d", ev.size);
-                mq.send(buffer, std::strlen(buffer) + 1, 0);
 
                 std::optional<myseq::NoteMessage> msg = myseq::NoteMessage::parse(ev.data);
                 if (msg.has_value()) {
@@ -216,6 +209,7 @@ START_NAMESPACE_DISTRHO
                     st.key = "pattern";
                     st.label = "Pattern";
                     state = myseq::State();
+                    //{"selected":0,"patterns":[{"width":32,"id":0,"height":128,"first_note":0,"last_note":15,"cursor_x":0,"cursor_y":91," cells":[{"x":0,"y":91,"v":127},{"x":4,"y":91,"v":127},{"x":8,"y":91,"v":127},{"x":16,"y":91,"v":127},{"x":20,"y":91,"v":127},{"x":12,"y":91,"v":127},{"x":24,"y":91,"v":127}]}]}
                     st.defaultValue = String(state.to_json_string().c_str());
                     break;
             }

@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <unordered_set>
-#include <boost/interprocess/ipc/message_queue.hpp>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
 #include "Patterns.hpp"
@@ -78,8 +77,6 @@ START_NAMESPACE_DISTRHO
         static constexpr int visible_rows = 20;
         float cell_width = 30.0f;
         float cell_height = 24.0f;
-        boost::interprocess::message_queue mq;
-        std::vector<std::string> mq_log;
         std::vector<std::pair<myseq::Cell, V2i>> clipboard;
 
         bool show_metrics = false;
@@ -107,8 +104,7 @@ START_NAMESPACE_DISTRHO
            The UI should be initialized to a default state that matches the plugin side.
          */
         MySeqUI()
-                : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT),
-                  mq(boost::interprocess::open_only, "myseq") {
+                : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
             const double scaleFactor = getScaleFactor();
 
             myseq::test_serialize();
@@ -543,9 +539,11 @@ START_NAMESPACE_DISTRHO
                         const auto rect = rect_selecting(mpos);
                         const auto c1 = calc_cell(p, grid_cpos, rect.first, grid_size, cell_size);
                         const auto c2 = calc_cell(p, grid_cpos, rect.second, grid_size, cell_size);
+                        p.deselect_all();
                         for (int x = c1.x; x <= c2.x; x++) {
                             for (int y = c1.y; y <= c2.y; y++) {
-                                p.set_selected(V2i(x, y), true);
+                                const auto v = V2i(x, y);
+                                p.set_selected(v, !p.get_selected(v));
                             }
                         }
                         SET_DIRTY()
@@ -884,29 +882,6 @@ START_NAMESPACE_DISTRHO
                     });
                     ImGui::EndTable();
                 }
-
-                if (ImGui::BeginChild("logscroll", ImVec2(0, 200), true, ImGuiWindowFlags_HorizontalScrollbar)) {
-                    ImGuiListClipper clipper;
-
-                    ImGui::SetScrollY(ImGui::GetScrollMaxY());
-
-                    char buffer[1024];
-                    std::size_t received = 0;
-                    unsigned int priority;
-                    while (mq.try_receive(buffer, sizeof(buffer), received, priority)) {
-                        mq_log.push_back(std::string(buffer));
-                    }
-
-                    clipper.Begin((int) mq_log.size());
-
-                    while (clipper.Step()) {
-                        for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++) {
-                            ImGui::Text("%s", mq_log[i].c_str());
-                        }
-                    }
-                    clipper.End();
-                }
-                ImGui::EndChild();
 
                 ImGui::EndGroup();
 
