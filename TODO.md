@@ -1,9 +1,8 @@
-- [ ] Buttons to x2 :2
-- [ ] Deselect when clicking away
-- [ ] State gets stuck: {"selected":0,"patterns":[{"width":32,"id":0,"height":128,"first_note":0,"last_note":15,"
-  cursor_x":0,"cursor_y":91,"
-  cells":[{"x":0,"y":91,"v":127},{"x":4,"y":91,"v":127},{"x":8,"y":91,"v":127},{"x":16,"y":91,"v":127},{"x":20,"y":91,"v":127},{"x":12,"y":91,"v":127},{"x":24,"y":91,"v":127}]}]}'
-  when playing lowest note at 110bpm
+- [x] Apply incoming velocity
+- [ ] Make 32 steps always visible
+- [ ] Add "Play current pattern", like in Renoisje
+- [ ] Buttons to x2 :2 pattern length
+- [x] Deselect when clicking away
 - [ ] Quicker way to dupe and play patterns
 - [ ] More info on what rows are
 - [ ] Smarter velocity when adding new steps

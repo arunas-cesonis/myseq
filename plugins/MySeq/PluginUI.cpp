@@ -84,8 +84,9 @@ START_NAMESPACE_DISTRHO
         int count = 0;
         ImVec2 offset;
         static constexpr int visible_rows = 20;
-        float cell_width = 30.0f;
-        float cell_height = 24.0f;
+        static constexpr int visible_columns = 32;
+        float default_cell_width = 30.0f;
+        float default_cell_height = 24.0f;
         std::vector<std::pair<myseq::Cell, V2i>> clipboard;
 
         bool show_metrics = false;
@@ -118,7 +119,7 @@ START_NAMESPACE_DISTRHO
 
             myseq::test_serialize();
 
-            offset = ImVec2(0.0f, -cell_height * (float) (visible_rows + 72));
+            offset = ImVec2(0.0f, -default_cell_height * (float) (visible_rows + 72));
 
             if (d_isEqual(scaleFactor, 1.0)) {
                 setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
@@ -693,8 +694,15 @@ START_NAMESPACE_DISTRHO
             const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
             const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
-            auto cell_size = ImVec2(cell_width, cell_height);
-            // auto cell_size = ImVec2(grid_width / (float) p.width, cell_height);
+
+            // fit at least visible_columns horizontally so that
+            // most common pattern setup only need to be scrolled vertically
+            auto cell_width =
+                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
+                                                                                                        (float) visible_columns;
+
+            auto cell_size = ImVec2(cell_width, default_cell_height);
+            // auto cell_size = ImVec2(grid_width / (float) p.width, default_cell_height);
             auto grid_height = cell_size.y * (float) visible_rows;
             const auto grid_size = ImVec2(grid_width, grid_height);
             auto mpos = ImGui::GetMousePos();
@@ -782,7 +790,6 @@ START_NAMESPACE_DISTRHO
             }
 
             draw_list->PopClipRect();
-            draw_list->AddRect(cpos, cpos + ImVec2(grid_width, grid_height), default_border_color);
             ImGui::Dummy(ImVec2(grid_width, grid_height));
             //
             grid_viewport_mouse_pan();

@@ -73,18 +73,20 @@ namespace myseq {
         double end_time{};
         bool finished{};
         Note note;
+        uint8_t velocity;
 
         ActivePattern() = default;
 
-        ActivePattern(int pattern_id, double start_time, double end_time, bool finished, Note note) : pattern_id(
+        ActivePattern(int pattern_id, double start_time, double end_time, bool finished, Note note, uint8_t velocity)
+                : pattern_id(
                 pattern_id),
-                                                                                                      start_time(
-                                                                                                              start_time),
-                                                                                                      end_time(
-                                                                                                              end_time),
-                                                                                                      finished(
-                                                                                                              finished),
-                                                                                                      note(note) {}
+                  start_time(
+                          start_time),
+                  end_time(
+                          end_time),
+                  finished(
+                          finished),
+                  note(note), velocity(velocity) {}
     };
 
 
@@ -94,7 +96,8 @@ namespace myseq {
 
         Player() = default;
 
-        void start_pattern(const State &state, const Note &note, double start_time, const TimeParams &tp) {
+        void
+        start_pattern(const State &state, const Note &note, uint8_t velocity, double start_time, const TimeParams &tp) {
             // 1. Find first pattern that has note in the range
             auto it = state.patterns.begin();
             while (it != state.patterns.end() &&
@@ -109,7 +112,7 @@ namespace myseq {
             const double pattern_duration = tp.step_duration * static_cast<double>(it->get_width());
             const auto start_time_offset = percent_from_start * pattern_duration;
             const auto new_start_time = start_time - start_time_offset;
-            active_patterns[note] = ActivePattern(it->get_id(), new_start_time, 0.0, false, note);
+            active_patterns[note] = ActivePattern(it->get_id(), new_start_time, 0.0, false, note, velocity);
         }
 
         void stop_pattern(const Note &note, double end_time) {
@@ -119,6 +122,14 @@ namespace myseq {
             }
             ap.end_time = end_time;
             ap.finished = true;
+        }
+
+        static uint8_t note_out_velocity(const ActivePattern &ap, uint8_t step_velocity) {
+            const auto v2 = std::round(127.0 * ((static_cast<double>(step_velocity) / 127.0) *
+                                                (static_cast<double>(ap.velocity) /
+                                                 127.0)));
+            assert(v2 >= 0.0 && v2 <= 127.0);
+            return static_cast<uint8_t >(v2);
         }
 
         template<typename F>
@@ -156,7 +167,7 @@ namespace myseq {
                         auto column_time = static_cast<double>(i) * tp.step_duration - pattern_time;
                         for (int row_index = 0; row_index < p.height; row_index++) {
                             const auto v = p.get_velocity(V2i(column_index, row_index));
-                            if (v > 0.0) {
+                            if (v > 0) {
                                 const auto step_end_time = window_start + column_time + tp.step_duration;
                                 const auto note_end_time = ap.second.finished ? std::min(step_end_time,
                                                                                          ap.second.end_time)
@@ -178,7 +189,7 @@ namespace myseq {
                                                 note_length);
                                     }
                                     an.play_note(note_event, utils::row_index_to_midi_note(row_index),
-                                                 v,
+                                                 note_out_velocity(ap.second, v),
                                                  column_time,
                                                  note_end_time
                                     );
@@ -211,8 +222,8 @@ namespace myseq {
             tp.time = 0.0;
             tp.playing = true;
 
-            player.start_pattern(state, Note{(uint8_t) p.first_note, 0}, 0.0, tp);
-            player.start_pattern(state, Note{(uint8_t) 10, 0}, 0.0, tp);
+            player.start_pattern(state, Note{(uint8_t) p.first_note, 0}, 127, 0.0, tp);
+            player.start_pattern(state, Note{(uint8_t) 10, 0}, 127, 0.0, tp);
 
             player.run([](uint8_t note, double velocity, double time) {
                 std::cout << "note=" << (int) note << " velocity=" << velocity << " time=" << time << std::endl;

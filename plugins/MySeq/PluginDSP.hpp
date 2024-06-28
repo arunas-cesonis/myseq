@@ -93,7 +93,7 @@ START_NAMESPACE_DISTRHO
                     switch (v.type) {
                         case myseq::NoteMessage::Type::NoteOn:
                             d_debug(" IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
-                            player.start_pattern(state, v.note, time, tp);
+                            player.start_pattern(state, v.note, v.velocity, time, tp);
                             break;
                         case myseq::NoteMessage::Type::NoteOff:
                             d_debug(" IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
