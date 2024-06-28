@@ -51,6 +51,11 @@ namespace myseq {
             return {x - other.x, y - other.y};
         }
 
+        void operator-=(const V2i &other) {
+            x -= other.x;
+            y -= other.y;
+        }
+
         V2i operator+(const V2i &other) const {
             return {x + other.x, y + other.y};
         }
@@ -210,21 +215,26 @@ namespace myseq {
             cells.remove(grid[coords_to_index(coords)]);
         }
 
+        void put_cells(const std::vector<std::pair<Cell, V2i>> &cells, const V2i &at) {
+            for (const auto &pair: cells) {
+                const auto pos = pair.second + at;
+                // wrap around
+                auto wrapped = pos;
+                wrapped.x = wrapped.x % width;
+                wrapped.x += wrapped.x < 0 ? width : 0;
+                wrapped.y = wrapped.y % height;
+                wrapped.y += wrapped.y < 0 ? height : 0;
+                set_cell(wrapped, pair.first);
+            }
+        }
+
         void move_selected_cells(const V2i &delta) {
             std::vector<std::pair<Cell, V2i>> removed;
             each_selected_cell([&](const Cell &cell, const V2i &v) {
                 removed.emplace_back(cell, v);
                 clear_cell(v);
             });
-            for (const auto &pair: removed) {
-                auto new_coords = pair.second + delta;
-                // wrap around
-                new_coords.x = new_coords.x % width;
-                new_coords.x += new_coords.x < 0 ? width : 0;
-                new_coords.y = new_coords.y % height;
-                new_coords.y += new_coords.y < 0 ? height : 0;
-                set_cell(new_coords, pair.first);
-            }
+            put_cells(removed, delta);
         }
 
         int deselect_all() {
