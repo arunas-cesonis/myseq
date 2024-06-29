@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <sstream>
 #include <iostream>
+#include <random>
+#include <chrono>
 #include <cassert>
 
 #include <optional>
@@ -26,6 +28,19 @@ namespace myseq {
     void test_serialize();
 
     namespace utils {
+
+        static unsigned long gen_id() {
+            std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+            const auto t = now.time_since_epoch().count();
+            std::mt19937 mt(t);
+            const auto r = mt();
+            return r;
+        }
+
+        static std::string gen_instance_id() {
+            return std::string("myseq_") + std::to_string(gen_id());
+        }
+
         static uint8_t row_index_to_midi_note(std::size_t row) {
             assert(row >= 0 && row <= 127);
             return 127 - row;
@@ -424,7 +439,6 @@ namespace myseq {
         [[nodiscard]] std::pair<int, int> try_find_free_16_range() const {
             int used[128]{};
             for (auto &p: patterns) {
-                d_debug("pattern %d %d %d", p.id, p.first_note, p.last_note);
                 for (int i = p.first_note; i <= p.last_note; i++) {
                     used[i]++;
                 }
@@ -444,7 +458,6 @@ namespace myseq {
             p.first_note = range.first;
             p.last_note = range.second;
             patterns.push_back(p);
-            d_debug("credate %d %d", p.first_note, p.last_note);
             return patterns.back();
         }
 

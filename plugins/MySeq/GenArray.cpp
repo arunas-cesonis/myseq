@@ -2,6 +2,7 @@
 // Created by Arunas on 14/06/2024.
 //
 
+#include <cista.h>
 #include "GenArray.hpp"
 
 
@@ -163,6 +164,7 @@ void gen_array_test_basic() {
 
 }
 
+
 void gen_array_tests() {
     gen_array_test_more_elements();
     gen_array_test_basic();
@@ -170,5 +172,4 @@ void gen_array_tests() {
     gen_array_test_mutate();
     gen_array_test_const_iterator();
 }
-
 

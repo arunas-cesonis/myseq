@@ -1,4 +1,7 @@
 #include <algorithm>
+#include <boost/interprocess/shared_memory_object.hpp>
+#include <boost/interprocess/mapped_region.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
 #include <unordered_set>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
@@ -69,6 +72,8 @@ START_NAMESPACE_DISTRHO
     // }
 
 
+    namespace ipc = boost::interprocess;
+
     class MySeqUI : public UI {
     public:
         myseq::State state;
@@ -86,8 +91,16 @@ START_NAMESPACE_DISTRHO
         float default_cell_width = 30.0f;
         float default_cell_height = 24.0f;
         std::vector<std::pair<myseq::Cell, V2i>> clipboard;
+        std::string instance_id = myseq::utils::gen_instance_id();
 
         bool show_metrics = false;
+
+        ipc::shared_memory_object shm_obj;
+        ipc::mapped_region shm_reg;
+        ipc::managed_shared_memory shm;
+        myseq::Stats *stats = nullptr;
+        cista::byte_buf stats_buf;
+
 
         enum class Interaction {
             None,
@@ -106,6 +119,14 @@ START_NAMESPACE_DISTRHO
         };
         InputMode input_mode = InputMode::Drawing;
 
+        void init_shm() {
+            d_debug("PluginUI: init_shm: creating shm_obj %s", instance_id.c_str());
+            shm_obj = ipc::shared_memory_object(ipc::open_or_create, instance_id.c_str(), ipc::read_only);
+            d_debug("PluginUI: init_shm: creating shm_reg %s", instance_id.c_str());
+            shm_reg = ipc::mapped_region(shm_obj, ipc::read_only, 0, 1024);
+            d_debug("PluginUI: init_shm: done %s", instance_id.c_str());
+        }
+
 
         /**
            UI class constructor.
@@ -116,6 +137,7 @@ START_NAMESPACE_DISTRHO
             const double scaleFactor = getScaleFactor();
 
             myseq::test_serialize();
+            init_shm();
 
             offset = ImVec2(0.0f, -default_cell_height * (float) (visible_rows + 72));
 
@@ -129,10 +151,17 @@ START_NAMESPACE_DISTRHO
             }
 
             gen_array_tests();
+            setState("instance_id", String(instance_id.c_str()));
         }
 
         int publish_count = 0;
         int publish_last_bytes = 0;
+
+        void read_stats() {
+            stats_buf.resize(sizeof(myseq::Stats));
+            std::memcpy(stats_buf.data(), shm_reg.get_address(), sizeof(myseq::Stats));
+            stats = cista::deserialize<myseq::Stats>(stats_buf);
+        }
 
         void publish() {
             auto s = state.to_json_string();
@@ -815,6 +844,8 @@ START_NAMESPACE_DISTRHO
             // ImGui::SetNextWindowPos(ImVec2(0, 0));
             //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
 
+            read_stats();
+
             int window_flags =
                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
                     | ImGuiWindowFlags_NoScrollWithMouse
@@ -911,7 +942,6 @@ START_NAMESPACE_DISTRHO
 
                 if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
                     SET_DIRTY();
-                    d_debug("XX");
                 }
 
                 ImGui::EndGroup();
@@ -933,6 +963,7 @@ START_NAMESPACE_DISTRHO
                 //ImGui::SameLine();
                 //p.last_note = note_select("Last note", p.last_note);
                 //ImGui::PopID();
+                ImGui::BeginGroup();
 
                 const TimePosition &t = ((MySeqPlugin *) getPluginInstancePointer())->last_time_position;
                 const double sr = ((MySeqPlugin *) getPluginInstancePointer())->getSampleRate();
@@ -944,6 +975,7 @@ START_NAMESPACE_DISTRHO
                 p.each_selected_cell([&selected_cells_count](const myseq::Cell &c, const V2i &v) {
                     selected_cells_count += 1;
                 });
+                ImGui::Text("instance_id=%s", instance_id.c_str());
                 ImGui::Text("publish_count=%d", publish_count);
                 ImGui::Text("publish_last_bytes=%d", publish_last_bytes);
                 ImGui::Text("input_mode=%s", input_mode_to_string(input_mode));
@@ -953,6 +985,24 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("previous_move_offset=%d %d", previous_move_offset.x, previous_move_offset.y);
                 ImGui::Text("offset=%f %f", offset.x, offset.y);
                 ImGui::Text("p: %s", p.debug_print().c_str());
+                ImGui::EndGroup();
+                if (nullptr != stats) {
+                    ImGui::SameLine();
+                    ImGui::BeginGroup();
+                    ImGui::Text("stats=0x%016lx", (unsigned long) stats);
+                    ImGui::Text("stats.transport.valid=%d", stats->transport.valid);
+                    ImGui::Text("stats.transport.playing=%d", stats->transport.playing);
+                    ImGui::Text("stats.transport.frame=%llu", stats->transport.frame);
+                    ImGui::Text("stats.transport.bar=%d", stats->transport.bar);
+                    ImGui::Text("stats.transport.beat=%d", stats->transport.beat);
+                    ImGui::Text("stats.transport.tick=%f", stats->transport.tick);
+                    ImGui::Text("stats.transport.barStartTick=%f", stats->transport.bar_start_tick);
+                    ImGui::Text("stats.transport.beatsPerBar=%f", stats->transport.beats_per_bar);
+                    ImGui::Text("stats.transport.beatType=%f", stats->transport.beat_type);
+                    ImGui::Text("stats.transport.ticksPerBeat=%f", stats->transport.ticks_per_beat);
+                    ImGui::Text("stats.transport.beatsPerMinute=%f", stats->transport.beats_per_minute);
+                    ImGui::EndGroup();
+                }
 
                 /*
                 ImGui::Text("t.frame=%llu", t.frame);
@@ -1008,9 +1058,18 @@ START_NAMESPACE_DISTRHO
         }
 
         void stateChanged(const char *key, const char *value) override {
-            d_debug("PluginUI: stateChanged value=[%s]\n", value ? value : "null");
+            d_debug("PluginUI: stateChanged key=%s", key);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
+            } else if (std::strcmp(key, "instance_id") == 0) {
+                d_debug("PluginUI: stateChanged instance_id=%s new=%s", instance_id.c_str(), value);
+                if (std::strcmp(instance_id.c_str(), value) != 0) {
+                    d_debug("PluginUI: reinitialzing shm");
+                    instance_id = std::string(value);
+                    init_shm();
+                } else {
+                    d_debug("PluginUI: will do nothing for same value");
+                }
             }
         }
         // ----------------------------------------------------------------------------------------------------------------

@@ -6,12 +6,21 @@
 #define MY_PLUGINS_PLUGINDSP_HPP
 
 #include <cassert>
+#include <random>
+#include <chrono>
+#include <boost/interprocess/shared_memory_object.hpp>
+#include <boost/interprocess/mapped_region.hpp>
+#include <boost/interprocess/managed_shared_memory.hpp>
 #include <map>
+#include <cista.h>
 #include <iomanip>
 #include "DistrhoPlugin.hpp"
 #include "Patterns.hpp"
+#include "Stats.hpp"
 #include "Player.hpp"
 #include "TimePositionCalc.hpp"
+
+namespace ipc = boost::interprocess;
 
 START_NAMESPACE_DISTRHO
 
@@ -23,12 +32,22 @@ START_NAMESPACE_DISTRHO
          */
         myseq::Player player;
         myseq::State state;
+        std::string instance_id = "";
         TimePosition last_time_position;
         int iteration = 0;
         bool prev_play_selected = false;
+        enum class ShmStatus {
+            Unavailable,
+            Configuring,
+            Ready
+        } shm_status = ShmStatus::Unavailable;
+        ipc::shared_memory_object shm_obj;
+        ipc::mapped_region shm_reg;
+        ipc::managed_shared_memory shm;
+
 
         MySeqPlugin()
-                : Plugin(0, 0, 1) {
+                : Plugin(0, 0, 2) {
             myseq::Test::test_player_run();
         }
 
@@ -109,11 +128,11 @@ START_NAMESPACE_DISTRHO
                         const auto time = tp.time + (ev.frame / tc.frames_per_tick());
                         switch (v.type) {
                             case myseq::NoteMessage::Type::NoteOn:
-                                d_debug(" IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
+                                d_debug("PluginDSP: IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
                                 player.start_patterns(state, v.note, v.velocity, time, tp);
                                 break;
                             case myseq::NoteMessage::Type::NoteOff:
-                                d_debug(" IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
+                                d_debug("PluginDSP: IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
                                 player.stop_patterns(v.note, time);
                                 break;
                             default:
@@ -136,7 +155,7 @@ START_NAMESPACE_DISTRHO
                         nullptr
                 };
                 const auto k = msg == 0x90 ? "ON " : "OFF";
-                d_debug("OUT: NOTE %s %3d %d:%d", k, note, iteration, evt.frame);
+                d_debug("PluginDSP: OUT: NOTE %s %3d %d:%d", k, note, iteration, evt.frame);
                 writeMidiEvent(evt);
             };
 
@@ -156,33 +175,75 @@ START_NAMESPACE_DISTRHO
             run_player1(frames, midiEvents, midiEventCount);
             // run_player2(frames, midiEvents, midiEventCount);
             const TimePosition &t = getTimePosition();
+
+
+            if (shm_status == ShmStatus::Ready) {
+                const myseq::Stats stats = {
+                        myseq::transport_from_time_position(t)
+                };
+                auto buf = cista::serialize(stats);
+                std::memcpy(shm_reg.get_address(), buf.data(), buf.size());
+            }
+
             last_time_position = t;
             iteration++;
         }
 
+        void init_shm() {
+            d_debug("PluginDSP: init_shm: %s", instance_id.c_str());
+            d_debug("PluginDSP: init_shm: creating shm_obj");
+            shm_obj = ipc::shared_memory_object(ipc::open_or_create, instance_id.c_str(), ipc::read_write);
+            d_debug("PluginDSP: init_shm: created shm_obj");
+            d_debug("PluginDSP: init_shm: resizing shm_obj");
+            shm_obj.truncate(1024);
+            d_debug("PluginDSP: init_shm: resized shm_obj");
+            d_debug("PluginDSP: init_shm: creating shm_reg");
+            shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
+            d_debug("PluginDSP: init_shm: created shm_reg");
+            shm_status = ShmStatus::Ready;
+            d_debug("PluginDSP: init_shm: %s ready", instance_id.c_str());
+        }
+
         void setState(const char *key, const char *value) override {
-            DISTRHO_SAFE_ASSERT(std::strcmp("pattern", key) == 0);
-            state = myseq::State::from_json_string(value);
+            d_debug("PluginDSP: setState: key=%s", key);
+            if (std::strcmp(key, "pattern") == 0) {
+                state = myseq::State::from_json_string(value);
+            } else if (std::strcmp(key, "instance_id") == 0) {
+                if (shm_status == ShmStatus::Unavailable) {
+                    d_debug("PluginDSP: init_shm: configuring");
+                    assert(shm_status != ShmStatus::Ready);
+                    shm_status = ShmStatus::Configuring;
+                    instance_id = value;
+                    init_shm();
+                }
+            } else {
+                assert(false);
+            }
         }
 
         String getState(const char *key) const override {
-            DISTRHO_SAFE_ASSERT(std::strcmp("pattern", key) == 0);
-            return String(state.to_json_string().c_str());
+            if (std::strcmp(key, "pattern") == 0) {
+                return String(state.to_json_string().c_str());
+            } else if (std::strcmp(key, "instance_id") == 0) {
+                return String(instance_id.c_str());
+            } else {
+                assert(false);
+            }
         }
 
         void activate() override {
-            d_debug("ACTIVATE");
+            d_debug("PluginDSP: activate");
         }
 
         void deactivate() override {
-            d_debug("DEACTIVATE");
+            d_debug("PluginDSP: deactivate");
         }
 
         void initState(uint32_t index, State &st) override {
             //   state.key = "ticks";
             //    state.defaultValue = "0";
             d_debug("PluginDSP: initState index=%d\n", index);
-            DISTRHO_SAFE_ASSERT(index == 0);
+            DISTRHO_SAFE_ASSERT(index <= 1);
             switch (index) {
                 case 0:
                     st.key = "pattern";
@@ -190,6 +251,11 @@ START_NAMESPACE_DISTRHO
                     state = myseq::State();
                     //{"selected":0,"patterns":[{"width":32,"id":0,"height":128,"first_note":0,"last_note":15,"cursor_x":0,"cursor_y":91," cells":[{"x":0,"y":91,"v":127},{"x":4,"y":91,"v":127},{"x":8,"y":91,"v":127},{"x":16,"y":91,"v":127},{"x":20,"y":91,"v":127},{"x":12,"y":91,"v":127},{"x":24,"y":91,"v":127}]}]}
                     st.defaultValue = String(state.to_json_string().c_str());
+                    break;
+                case 1:
+                    st.key = "instance_id";
+                    st.label = "instance_id";
+                    st.defaultValue = String(myseq::utils::gen_instance_id().c_str());
                     break;
             }
         }

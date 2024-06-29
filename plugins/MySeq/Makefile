@@ -12,12 +12,14 @@ NAME = MySeq
 
 FILES_DSP = \
 	PluginDSP.cpp \
-	Patterns.cpp
+	Patterns.cpp \
+	Stats.cpp
 
 FILES_UI = \
 	PluginUI.cpp \
 	Patterns.cpp \
 	GenArray.cpp \
+	Stats.cpp \
 	../../dpf-widgets/opengl/DearImGui.cpp
 
 # --------------------------------------------------------------

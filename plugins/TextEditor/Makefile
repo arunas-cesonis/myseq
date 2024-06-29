@@ -11,10 +11,12 @@ NAME = TextEditor
 # Files to build
 
 FILES_DSP = \
-	PluginDSP.cpp
+	PluginDSP.cpp \
+	Stats.cpp
 
 FILES_UI = \
 	PluginUI.cpp \
+	Stats.cpp \
 	../../dpf-widgets/opengl/DearImGui.cpp \
 	../../dpf-widgets/opengl/DearImGuiColorTextEditor.cpp
 
