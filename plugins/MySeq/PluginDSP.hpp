@@ -15,8 +15,6 @@
 
 START_NAMESPACE_DISTRHO
 
-    std::string gen_unique_id();
-
     class MySeqPlugin : public Plugin {
     public:
         /**
@@ -27,6 +25,7 @@ START_NAMESPACE_DISTRHO
         myseq::State state;
         TimePosition last_time_position;
         int iteration = 0;
+        bool prev_play_selected = false;
 
         MySeqPlugin()
                 : Plugin(0, 0, 1) {
@@ -77,30 +76,49 @@ START_NAMESPACE_DISTRHO
             return d_cconst('d', 'T', 'x', 't');
         }
 
+        bool is_playing_only_selected() {
+            return player.active_patterns.size() == 1
+                   && player.active_patterns[0].pattern_id == state.selected
+                   && player.active_patterns[0].note == myseq::Note{127, 127};
+        }
+
         void run_player1(uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
                          [[maybe_unused]] uint32_t midiEventCount) {
             const TimePosition &t = getTimePosition();
             const myseq::TimePositionCalc tc(t, getSampleRate());
             const myseq::TimeParams tp = {tc.global_tick(), tc.sixteenth_note_duration_in_ticks(),
                                           ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
-            for (auto i = 0; i < (int) midiEventCount; i++) {
-                auto &ev = midiEvents[i];
 
-                std::optional<myseq::NoteMessage> msg = myseq::NoteMessage::parse(ev.data);
-                if (msg.has_value()) {
-                    const auto &v = msg.value();
-                    const auto time = tp.time + (ev.frame / tc.frames_per_tick());
-                    switch (v.type) {
-                        case myseq::NoteMessage::Type::NoteOn:
-                            d_debug(" IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
-                            player.start_pattern(state, v.note, v.velocity, time, tp);
-                            break;
-                        case myseq::NoteMessage::Type::NoteOff:
-                            d_debug(" IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
-                            player.stop_pattern(v.note, time);
-                            break;
-                        default:
-                            break;
+            if (state.play_selected != prev_play_selected) {
+                if (state.play_selected) {
+                    player.start_selected_pattern(state);
+                } else {
+                    player.stop_selected_pattern(state);
+                }
+            } else if (state.play_selected) {
+                player.update_selected_pattern(state);
+            }
+
+            if (!state.play_selected) {
+                for (auto i = 0; i < (int) midiEventCount; i++) {
+                    auto &ev = midiEvents[i];
+
+                    std::optional<myseq::NoteMessage> msg = myseq::NoteMessage::parse(ev.data);
+                    if (msg.has_value()) {
+                        const auto &v = msg.value();
+                        const auto time = tp.time + (ev.frame / tc.frames_per_tick());
+                        switch (v.type) {
+                            case myseq::NoteMessage::Type::NoteOn:
+                                d_debug(" IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
+                                player.start_patterns(state, v.note, v.velocity, time, tp);
+                                break;
+                            case myseq::NoteMessage::Type::NoteOff:
+                                d_debug(" IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
+                                player.stop_patterns(v.note, time);
+                                break;
+                            default:
+                                break;
+                        }
                     }
                 }
             }
@@ -122,8 +140,8 @@ START_NAMESPACE_DISTRHO
                 writeMidiEvent(evt);
             };
 
-            const auto frames_per_tick = tc.frames_per_tick();
-            player.run(send, state, tp, frames_per_tick);
+            prev_play_selected = state.play_selected;
+            player.run(send, state, tp);
         }
 
         void run(const float **inputs, float **outputs, uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
@@ -139,45 +157,6 @@ START_NAMESPACE_DISTRHO
             // run_player2(frames, midiEvents, midiEventCount);
             const TimePosition &t = getTimePosition();
             last_time_position = t;
-
-            // params.setTimePosition(t);
-
-            // int fr = (int) std::round(tc.global_frame());
-            // if (previous != -1) {
-            //     // d_debug("previous=%d frame=%d -> %d", previous, fr, frame - previous);
-            // }
-            // uint32_t midi_event = 0;
-            // const auto global_tick = tc.global_tick();
-            // const auto frames_per_tick = tc.frames_per_tick();
-            // myseq::TimeParams2 tp;
-            // tp.tick = 0.0;
-            // tp.frame = 0;
-            // tp.frames_per_tick = tc.frames_per_tick();
-            // tp.ticks_per_sixteenth_note = tc.sixteenth_note_duration_in_ticks();
-            // tp.playing = t.playing;
-            // for (uint32_t x = 0; x < midiEventCount; x++) {
-            //     //d_debug("MIDI EVENT %d frame=%d %d %d %d %d", x, midiEvents[x].frame, midiEvents[x].data[0],
-            //     //       midiEvents[x].data[1], midiEvents[x].data[2], midiEvents[x].data[3]);
-            // }
-            // std::vector<MidiEvent> midi_events_out;
-            // for (uint32_t frame = 0; frame < frames; frame++) {
-            //     std::vector<MidiEvent> midi_events_in;
-            //     while (midi_event < midiEventCount && midiEvents[midi_event].frame == frame) {
-            //         midi_events_in.push_back(midiEvents[midi_event]);
-            //         midi_event++;
-            //     }
-            //     tp.frame = (int) frame + (t.frame != 0 ? t.frame : (int) tc.global_frame());
-            //     tp.tick = global_tick + (double) frame / frames_per_tick;
-            //     player2.run(tp, state, midi_events_in, midi_events_out);
-            // }
-            // for (const auto ev: midi_events_out) {
-            //     writeMidiEvent(ev);
-            // }
-            // if (t.playing) {
-            //     previous = fr + (int) frames;
-            // } else {
-            //     previous = -1;
-            // }
             iteration++;
         }
 

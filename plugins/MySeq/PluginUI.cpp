@@ -24,8 +24,6 @@ START_NAMESPACE_DISTRHO
         ImVec2 p_max;
         V2i cell_min;
         V2i cell_max;
-
-        SelectionRectangle() = default;
     };
 
     template<typename T>
@@ -83,7 +81,7 @@ START_NAMESPACE_DISTRHO
         ImVec2 drag_started_mpos;
         int count = 0;
         ImVec2 offset;
-        static constexpr int visible_rows = 20;
+        static constexpr int visible_rows = 12;
         static constexpr int visible_columns = 32;
         float default_cell_width = 30.0f;
         float default_cell_height = 24.0f;
@@ -908,6 +906,12 @@ START_NAMESPACE_DISTRHO
                         ImGui::PopID();
                     });
                     ImGui::EndTable();
+                }
+
+
+                if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
+                    SET_DIRTY();
+                    d_debug("XX");
                 }
 
                 ImGui::EndGroup();

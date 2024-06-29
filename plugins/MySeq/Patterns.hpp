@@ -81,6 +81,19 @@ namespace myseq {
 
         Note(uint8_t note, uint8_t channel) : note(note), channel(channel) {}
 
+
+        bool ne(const Note &other) const {
+            return note != other.note || channel != other.channel;
+        }
+
+        bool operator!=(const Note &other) const {
+            return ne(other);
+        }
+
+        bool operator==(const Note &other) const {
+            return !ne(other);
+        }
+
         bool operator<(const Note &other) const {
             if (channel < other.channel) {
                 return true;
@@ -344,6 +357,8 @@ namespace myseq {
 
     struct State {
         std::vector<Pattern> patterns;
+        int selected = -1;
+        bool play_selected = false;
 
         State() = default;
 
@@ -369,8 +384,6 @@ namespace myseq {
             }
             return max + 1;
         }
-
-        int selected = -1;
 
         //State() = default;
 
