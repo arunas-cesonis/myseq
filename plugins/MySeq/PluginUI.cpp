@@ -1,7 +1,4 @@
 #include <algorithm>
-#include <boost/interprocess/shared_memory_object.hpp>
-#include <boost/interprocess/mapped_region.hpp>
-#include <boost/interprocess/managed_shared_memory.hpp>
 #include <unordered_set>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
@@ -40,6 +37,15 @@ START_NAMESPACE_DISTRHO
                 clamp(color.Value.y, 0.0f, 1.0f),
                 clamp(color.Value.z, 0.0f, 1.0f),
                 clamp(color.Value.w, 0.0f, 1.0f)
+        };
+    }
+
+    ImColor color_rgba_to_rbga(ImColor color) {
+        return {
+                color.Value.x,
+                color.Value.z,
+                color.Value.y,
+                color.Value.w
         };
     }
 
@@ -95,11 +101,8 @@ START_NAMESPACE_DISTRHO
 
         bool show_metrics = false;
 
-        ipc::shared_memory_object shm_obj;
-        ipc::mapped_region shm_reg;
-        ipc::managed_shared_memory shm;
-        myseq::Stats *stats = nullptr;
-        cista::byte_buf stats_buf;
+        std::optional<myseq::StatsReaderShm> stats_reader_shm;
+        std::optional<myseq::Stats> stats;
 
 
         enum class Interaction {
@@ -120,11 +123,7 @@ START_NAMESPACE_DISTRHO
         InputMode input_mode = InputMode::Drawing;
 
         void init_shm() {
-            d_debug("PluginUI: init_shm: creating shm_obj %s", instance_id.c_str());
-            shm_obj = ipc::shared_memory_object(ipc::open_or_create, instance_id.c_str(), ipc::read_only);
-            d_debug("PluginUI: init_shm: creating shm_reg %s", instance_id.c_str());
-            shm_reg = ipc::mapped_region(shm_obj, ipc::read_only, 0, 1024);
-            d_debug("PluginUI: init_shm: done %s", instance_id.c_str());
+            stats_reader_shm.emplace(instance_id.c_str());
         }
 
 
@@ -158,9 +157,9 @@ START_NAMESPACE_DISTRHO
         int publish_last_bytes = 0;
 
         void read_stats() {
-            stats_buf.resize(sizeof(myseq::Stats));
-            std::memcpy(stats_buf.data(), shm_reg.get_address(), sizeof(myseq::Stats));
-            stats = cista::deserialize<myseq::Stats>(stats_buf);
+            if (stats_reader_shm.has_value()) {
+                stats.emplace(stats_reader_shm->read());
+            }
         }
 
         void publish() {
@@ -765,7 +764,7 @@ START_NAMESPACE_DISTRHO
                     if (vel > 0) {
                         cell_color1 = ImColor(ImLerp(ImColor(IM_COL32_BLACK).Value, active_cell.Value, velocity_fade));
                         if (sel) {
-                            cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
+                            //cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
                             auto tmp = cell_color1.Value.y;
                             cell_color1.Value.y = cell_color1.Value.z;
                             cell_color1.Value.z = tmp;
@@ -783,7 +782,10 @@ START_NAMESPACE_DISTRHO
                     // auto quarter_fade = is_black_key(note) ? 0.8f : 1.f;
                     if (interaction == Interaction::MovingCells) {
                         if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
-                            cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
+                            auto tmp = cell_color1.Value.y;
+                            cell_color1.Value.y = cell_color1.Value.z;
+                            cell_color1.Value.z = tmp;
+                            // cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
                         }
                     }
 
@@ -870,6 +872,7 @@ START_NAMESPACE_DISTRHO
             auto &p = state.get_selected_pattern();
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
+                ImGui::SetWindowFontScale(1.5);
 
                 show_grid(dirty, p);
 
@@ -981,15 +984,12 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("input_mode=%s", input_mode_to_string(input_mode));
                 ImGui::Text("selected_cells count=%d", selected_cells_count);
                 ImGui::Text("clipboard.size=%lu", clipboard.size());
-                ImGui::Text("drag_started_velocity=%d", drag_started_velocity);
-                ImGui::Text("previous_move_offset=%d %d", previous_move_offset.x, previous_move_offset.y);
                 ImGui::Text("offset=%f %f", offset.x, offset.y);
-                ImGui::Text("p: %s", p.debug_print().c_str());
                 ImGui::EndGroup();
-                if (nullptr != stats) {
+                if (stats.has_value()) {
                     ImGui::SameLine();
                     ImGui::BeginGroup();
-                    ImGui::Text("stats=0x%016lx", (unsigned long) stats);
+                    // ImGui::Text("stats=0x%016lx", (unsigned long) stats);
                     ImGui::Text("stats.transport.valid=%d", stats->transport.valid);
                     ImGui::Text("stats.transport.playing=%d", stats->transport.playing);
                     ImGui::Text("stats.transport.frame=%llu", stats->transport.frame);

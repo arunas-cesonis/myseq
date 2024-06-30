@@ -8,9 +8,6 @@
 #include <cassert>
 #include <random>
 #include <chrono>
-#include <boost/interprocess/shared_memory_object.hpp>
-#include <boost/interprocess/mapped_region.hpp>
-#include <boost/interprocess/managed_shared_memory.hpp>
 #include <map>
 #include <cista.h>
 #include <iomanip>
@@ -41,10 +38,7 @@ START_NAMESPACE_DISTRHO
             Configuring,
             Ready
         } shm_status = ShmStatus::Unavailable;
-        ipc::shared_memory_object shm_obj;
-        ipc::mapped_region shm_reg;
-        ipc::managed_shared_memory shm;
-
+        std::optional<myseq::StatsWriterShm> stats_writer_shm;
 
         MySeqPlugin()
                 : Plugin(0, 0, 2) {
@@ -177,44 +171,48 @@ START_NAMESPACE_DISTRHO
             const TimePosition &t = getTimePosition();
 
 
-            if (shm_status == ShmStatus::Ready) {
+            if (stats_writer_shm.has_value()) {
                 const myseq::Stats stats = {
                         myseq::transport_from_time_position(t)
                 };
-                auto buf = cista::serialize(stats);
-                std::memcpy(shm_reg.get_address(), buf.data(), buf.size());
+                stats_writer_shm->write(stats);
+                //auto buf = cista::serialize(stats);
+                //std::memcpy(shm_reg.get_address(), buf.data(), buf.size());
             }
 
             last_time_position = t;
             iteration++;
         }
 
-        void init_shm() {
-            d_debug("PluginDSP: init_shm: %s", instance_id.c_str());
-            d_debug("PluginDSP: init_shm: creating shm_obj");
-            shm_obj = ipc::shared_memory_object(ipc::open_or_create, instance_id.c_str(), ipc::read_write);
-            d_debug("PluginDSP: init_shm: created shm_obj");
-            d_debug("PluginDSP: init_shm: resizing shm_obj");
-            shm_obj.truncate(1024);
-            d_debug("PluginDSP: init_shm: resized shm_obj");
-            d_debug("PluginDSP: init_shm: creating shm_reg");
-            shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
-            d_debug("PluginDSP: init_shm: created shm_reg");
-            shm_status = ShmStatus::Ready;
-            d_debug("PluginDSP: init_shm: %s ready", instance_id.c_str());
-        }
+        //void init_shm() {
+        //    stats_writer_shm.emplace(instance_id.c_str());
+        //    d_debug("PluginDSP: init_shm: %s", instance_id.c_str());
+        //    d_debug("PluginDSP: init_shm: creating shm_obj");
+        //    shm_obj = ipc::shared_memory_object(ipc::open_or_create, instance_id.c_str(), ipc::read_write);
+        //    d_debug("PluginDSP: init_shm: created shm_obj");
+        //    d_debug("PluginDSP: init_shm: resizing shm_obj");
+        //    shm_obj.truncate(1024);
+        //    d_debug("PluginDSP: init_shm: resized shm_obj");
+        //    d_debug("PluginDSP: init_shm: creating shm_reg");
+        //    shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
+        //    d_debug("PluginDSP: init_shm: created shm_reg");
+        //    shm_status = ShmStatus::Ready;
+        //    d_debug("PluginDSP: init_shm: %s ready", instance_id.c_str());
+        //}
 
         void setState(const char *key, const char *value) override {
             d_debug("PluginDSP: setState: key=%s", key);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "instance_id") == 0) {
-                if (shm_status == ShmStatus::Unavailable) {
+                if (!stats_writer_shm.has_value()) {
                     d_debug("PluginDSP: init_shm: configuring");
                     assert(shm_status != ShmStatus::Ready);
                     shm_status = ShmStatus::Configuring;
                     instance_id = value;
-                    init_shm();
+                    stats_writer_shm.emplace(instance_id.c_str());
+                    shm_status = ShmStatus::Ready;
+                    // init_shm();
                 }
             } else {
                 assert(false);
