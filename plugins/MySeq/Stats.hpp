@@ -61,18 +61,18 @@ namespace myseq {
         ipc::mapped_region shm_reg;
 
         StatsReaderShm(const char *name) {
-            shm_obj = ipc::shared_memory_object(ipc::open_or_create, name, ipc::read_write);
-            shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
+            shm_obj = ipc::shared_memory_object(ipc::open_or_create, name, ipc::read_only);
+            shm_reg = ipc::mapped_region(shm_obj, ipc::read_only, 0, 1024);
         }
 
         ~StatsReaderShm() {
             ipc::shared_memory_object::remove(shm_obj.get_name());
         }
 
-        Stats read() {
-            Stats stats;
-            std::memcpy(&stats, shm_reg.get_address(), sizeof(Stats));
-            return stats;
+        Stats *read() {
+            std::uint8_t *start = (std::uint8_t *) shm_reg.get_address();
+            std::uint8_t *end = start + sizeof(Stats);
+            return cista::deserialize<Stats>(start, end);
         }
     };
 

@@ -158,7 +158,7 @@ START_NAMESPACE_DISTRHO
 
         void read_stats() {
             if (stats_reader_shm.has_value()) {
-                stats.emplace(stats_reader_shm->read());
+                stats.emplace(*(stats_reader_shm->read()));
             }
         }
 
