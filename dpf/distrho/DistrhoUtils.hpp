@@ -113,12 +113,10 @@ void d_pass() noexcept {}
  * Internal noexcept-safe fopen function.
  */
 static inline
-FILE *__d_fopen(const char *const filename, FILE *const fallback) noexcept {
-
-#ifndef DPF_CAPTURE_CONSOLE_OUTPUT
+FILE* __d_fopen(const char* const filename, FILE* const fallback) noexcept
+{
     if (std::getenv("DPF_CAPTURE_CONSOLE_OUTPUT") == nullptr)
         return fallback;
-#endif // DPF_CAPTURE_CONSOLE_OUTPUT
 
     FILE* ret = nullptr;
 

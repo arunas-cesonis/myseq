@@ -114,15 +114,27 @@
 # define DISTRHO_UI_USE_NANOVG 0
 #endif
 
+#ifndef DISTRHO_UI_USE_WEBVIEW
+# define DISTRHO_UI_USE_WEBVIEW 0
+#endif
+
 // --------------------------------------------------------------------------------------------------------------------
 // Define DISTRHO_PLUGIN_HAS_EMBED_UI if needed
 
 #ifndef DISTRHO_PLUGIN_HAS_EMBED_UI
-# if (defined(DGL_CAIRO) && defined(HAVE_CAIRO)) || (defined(DGL_OPENGL) && defined(HAVE_OPENGL))
+# if (defined(DGL_CAIRO) && defined(HAVE_CAIRO)) || (defined(DGL_OPENGL) && defined(HAVE_OPENGL)) || defined(DGL_WEB)
 #  define DISTRHO_PLUGIN_HAS_EMBED_UI 1
 # else
 #  define DISTRHO_PLUGIN_HAS_EMBED_UI 0
 # endif
+#endif
+
+// --------------------------------------------------------------------------------------------------------------------
+// Define DISTRHO_PLUGIN_WANT_WEBVIEW if needed
+
+#if DISTRHO_UI_USE_WEBVIEW && !DISTRHO_PLUGIN_WANT_WEBVIEW
+# undef DISTRHO_PLUGIN_WANT_WEBVIEW
+# define DISTRHO_PLUGIN_WANT_WEBVIEW 1
 #endif
 
 // --------------------------------------------------------------------------------------------------------------------
