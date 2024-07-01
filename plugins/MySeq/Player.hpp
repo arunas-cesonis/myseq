@@ -9,6 +9,7 @@
 #include <sstream>
 #include "Patterns.hpp"
 #include "TimePositionCalc.hpp"
+#include "Stats.hpp"
 
 namespace myseq {
     struct TimeParams {
@@ -171,6 +172,24 @@ namespace myseq {
             return static_cast<uint8_t >(v2);
         }
 
+        static double calc_pattern_elapsed(const ActivePattern &ap, const TimeParams &tp) {
+            return tp.time - ap.start_time;
+        }
+
+        static double calc_pattern_duration(const myseq::Pattern &p, const TimeParams &tp) {
+            return tp.step_duration * static_cast<double>(p.width);
+        }
+
+        void push_active_pattern_stats(myseq::Stats &stats, const myseq::State &state, const TimeParams &tp) {
+            for (const auto &ap: active_patterns) {
+                myseq::ActivePatternStats aps;
+                const auto &p = state.get_pattern(ap.pattern_id);
+                aps.pattern_id = ap.pattern_id;
+                aps.duration = calc_pattern_duration(p, tp);
+                aps.time = std::fmod(calc_pattern_elapsed(ap, tp), aps.duration);
+                stats.active_patterns.push_back(aps);
+            }
+        }
 
         template<typename F>
         void run(F note_event, const myseq::State &state, const TimeParams &tp) {

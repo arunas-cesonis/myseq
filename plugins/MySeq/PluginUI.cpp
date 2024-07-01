@@ -59,13 +59,13 @@ START_NAMESPACE_DISTRHO
         };
     }
 
-    ImColor add_to_rgb(ImColor color, float amount) {
-        return {
+ImColor add_to_rgb(ImColor color, float amount) {
+        return clamp_color({
                 color.Value.x + amount,
                 color.Value.y + amount,
                 color.Value.z + amount,
                 color.Value.w
-        };
+        });
     }
 
     // ImColor invert_color(ImColor color) {
@@ -715,7 +715,7 @@ START_NAMESPACE_DISTRHO
             }
         }
 
-        void show_grid(bool &dirty, myseq::Pattern &p) {
+        void show_grid(bool &dirty, myseq::Pattern &p, const std::optional<myseq::ActivePatternStats> &aps) {
             float cell_padding = 4.0;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             float grid_width = ImGui::CalcItemWidth();
@@ -751,6 +751,12 @@ START_NAMESPACE_DISTRHO
             const auto last_visible_col = std::min(p.width - 1, (int) std::floor(corner2.x));
 
             draw_list->PushClipRect(cpos, cpos + ImVec2(grid_width, grid_height), true);
+
+
+            int active_column = -1;
+            if (aps.has_value()) {
+                active_column = (int) std::floor((double)p.width * (aps->time / aps->duration));
+            }
 
             for (auto j = first_visible_col; j <= last_visible_col; j++) {
                 for (auto i = first_visible_row; i <= last_visible_row; i++) {
@@ -792,6 +798,9 @@ START_NAMESPACE_DISTRHO
                         }
                     }
 
+                    if (j == active_column) {
+                        cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
+                    }
                     draw_list->AddRectFilled(p_min, p_max, cell_color1);
                     // Might make sense instead of checking were
                     // we are and maybe one of the things we need to draw is here
@@ -845,6 +854,17 @@ START_NAMESPACE_DISTRHO
             return {rect.first, rect.second, cell_min, cell_max};
         }
 
+        [[nodiscard]] std::optional<myseq::ActivePatternStats> get_pattern_stats(int pattern_id) const {
+            std::optional<myseq::ActivePatternStats> result;
+            for (const auto &aps: stats->active_patterns) {
+                if (aps.pattern_id == pattern_id) {
+                    result.emplace(aps);
+                    break;
+                }
+            }
+            return result;
+        }
+
         void onImGuiDisplay() override {
             // ImGui::SetNextWindowPos(ImVec2(0, 0));
             //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
@@ -875,9 +895,9 @@ START_NAMESPACE_DISTRHO
             auto &p = state.get_selected_pattern();
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
-                ImGui::SetWindowFontScale(1.5);
+                ImGui::SetWindowFontScale(1.0);
 
-                show_grid(dirty, p);
+                show_grid(dirty, p, get_pattern_stats(p.id));
 
                 ImGui::SameLine();
                 ImGui::BeginGroup();
@@ -897,11 +917,12 @@ START_NAMESPACE_DISTRHO
                 }
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-                if (ImGui::BeginTable("##patterns_table", 4, patterns_table_flags, ImVec2(0, 200))) {
+                if (ImGui::BeginTable("##patterns_table", 5, patterns_table_flags, ImVec2(0, 200))) {
                     ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
                     ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
                     ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 2);
                     ImGui::TableSetupColumn("last note", ImGuiTableColumnFlags_None, 0.0, 3);
+                    ImGui::TableSetupColumn("playing", ImGuiTableColumnFlags_None, 0.0, 3);
                     ImGui::TableHeadersRow();
                     state.each_pattern([&](const myseq::Pattern &pp) {
                         ImGui::TableNextRow();
@@ -941,6 +962,21 @@ START_NAMESPACE_DISTRHO
                         }
                         ImGui::PopID();
                         ImGui::PopID();
+
+                        ImGui::TableNextColumn();
+                        if (stats.has_value()) {
+                            bool found = false;
+                            for (const auto &aps: stats->active_patterns) {
+                                if (aps.pattern_id == id) {
+                                    ImGui::Text("%f / %f", aps.duration, aps.time);
+                                    found = true;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                ImGui::Text("0");
+                            }
+                        }
                     });
                     ImGui::EndTable();
                 }

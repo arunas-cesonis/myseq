@@ -127,7 +127,7 @@ struct GenArray {
         }
 
         T &operator*() {
-            return ga->data[index].value();
+            return *(ga->data[index]);
         }
 
         using difference_type = int;

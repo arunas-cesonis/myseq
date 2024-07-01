@@ -34,15 +34,21 @@ namespace myseq {
 
     Transport transport_from_time_position(const TimePosition &tp);
 
+    struct ActivePatternStats {
+        int32_t pattern_id;
+        double duration;
+        double time;
+    };
     struct Stats {
         Transport transport{};
+        data::vector<ActivePatternStats> active_patterns;
     };
 
     struct StatsWriterShm {
         ipc::shared_memory_object shm_obj;
         ipc::mapped_region shm_reg;
 
-        StatsWriterShm(const char *name) {
+        explicit StatsWriterShm(const char *name) {
             shm_obj = ipc::shared_memory_object(ipc::open_or_create, name, ipc::read_write);
             shm_obj.truncate(1024);
             shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
@@ -53,7 +59,7 @@ namespace myseq {
             ipc::shared_memory_object::remove(shm_obj.get_name());
         }
 
-        void write(const Stats &stats) {
+        void write(const Stats &stats) const {
             auto buf = cista::serialize(stats);
             std::memcpy((std::uint8_t *) shm_reg.get_address(), buf.data(), buf.size());
         }
@@ -63,7 +69,7 @@ namespace myseq {
         ipc::shared_memory_object shm_obj;
         ipc::mapped_region shm_reg;
 
-        StatsReaderShm(const char *name) {
+        explicit StatsReaderShm(const char *name) {
             shm_obj = ipc::shared_memory_object(ipc::open_or_create, name, ipc::read_only);
             shm_reg = ipc::mapped_region(shm_obj, ipc::read_only, 0, 1024);
         }
@@ -72,7 +78,7 @@ namespace myseq {
             ipc::shared_memory_object::remove(shm_obj.get_name());
         }
 
-        Stats *read() {
+        [[nodiscard]] Stats *read() const {
             auto addr = (std::uint8_t *) shm_reg.get_address();
             std::uint8_t *start = addr;
             std::uint8_t *end = start + shm_reg.get_size();

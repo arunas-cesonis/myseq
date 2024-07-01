@@ -38,6 +38,8 @@ START_NAMESPACE_DISTRHO
             Configuring,
             Ready
         } shm_status = ShmStatus::Unavailable;
+
+        myseq::Stats stats;
         std::optional<myseq::StatsWriterShm> stats_writer_shm;
 
         MySeqPlugin()
@@ -96,11 +98,8 @@ START_NAMESPACE_DISTRHO
         }
 
         void run_player1(uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
-                         [[maybe_unused]] uint32_t midiEventCount) {
-            const TimePosition &t = getTimePosition();
-            const myseq::TimePositionCalc tc(t, getSampleRate());
-            const myseq::TimeParams tp = {tc.global_tick(), tc.sixteenth_note_duration_in_ticks(),
-                                          ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
+                         [[maybe_unused]] uint32_t midiEventCount, const myseq::TimePositionCalc &tc,
+                         const myseq::TimeParams &tp) {
 
             if (state.play_selected != prev_play_selected) {
                 if (state.play_selected) {
@@ -166,14 +165,18 @@ START_NAMESPACE_DISTRHO
             if (inputs[1] != outputs[1])
                 std::memcpy(outputs[1], inputs[1], sizeof(float) * frames);
 
-            run_player1(frames, midiEvents, midiEventCount);
-            // run_player2(frames, midiEvents, midiEventCount);
             const TimePosition &t = getTimePosition();
+            const myseq::TimePositionCalc tc(t, getSampleRate());
+            const myseq::TimeParams tp = {tc.global_tick(), tc.sixteenth_note_duration_in_ticks(),
+                                          ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
+
+            run_player1(frames, midiEvents, midiEventCount, tc, tp);
+            // run_player2(frames, midiEvents, midiEventCount);
 
             if (stats_writer_shm.has_value()) {
-                myseq::Stats stats = {
-                        myseq::transport_from_time_position(t),
-                };
+                stats.transport = myseq::transport_from_time_position(t);
+                stats.active_patterns.clear();
+                player.push_active_pattern_stats(stats, state, tp);
                 stats_writer_shm->write(stats);
             }
 
