@@ -14,6 +14,10 @@
 #include "TimePositionCalc.hpp"
 
 namespace myseq {
+
+    namespace ipc = boost::interprocess;
+    namespace data = cista::offset;
+
     struct Transport {
         bool valid;
         bool playing;
@@ -34,8 +38,6 @@ namespace myseq {
         Transport transport{};
     };
 
-    namespace ipc = boost::interprocess;
-
     struct StatsWriterShm {
         ipc::shared_memory_object shm_obj;
         ipc::mapped_region shm_reg;
@@ -44,6 +46,7 @@ namespace myseq {
             shm_obj = ipc::shared_memory_object(ipc::open_or_create, name, ipc::read_write);
             shm_obj.truncate(1024);
             shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
+            std::memset(shm_reg.get_address(), 0, shm_reg.get_size());
         }
 
         ~StatsWriterShm() {
@@ -52,7 +55,7 @@ namespace myseq {
 
         void write(const Stats &stats) {
             auto buf = cista::serialize(stats);
-            std::memcpy(shm_reg.get_address(), buf.data(), buf.size());
+            std::memcpy((std::uint8_t *) shm_reg.get_address(), buf.data(), buf.size());
         }
     };
 
@@ -70,8 +73,9 @@ namespace myseq {
         }
 
         Stats *read() {
-            std::uint8_t *start = (std::uint8_t *) shm_reg.get_address();
-            std::uint8_t *end = start + sizeof(Stats);
+            auto addr = (std::uint8_t *) shm_reg.get_address();
+            std::uint8_t *start = addr;
+            std::uint8_t *end = start + shm_reg.get_size();
             return cista::deserialize<Stats>(start, end);
         }
     };

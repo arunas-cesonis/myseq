@@ -170,14 +170,11 @@ START_NAMESPACE_DISTRHO
             // run_player2(frames, midiEvents, midiEventCount);
             const TimePosition &t = getTimePosition();
 
-
             if (stats_writer_shm.has_value()) {
-                const myseq::Stats stats = {
-                        myseq::transport_from_time_position(t)
+                myseq::Stats stats = {
+                        myseq::transport_from_time_position(t),
                 };
                 stats_writer_shm->write(stats);
-                //auto buf = cista::serialize(stats);
-                //std::memcpy(shm_reg.get_address(), buf.data(), buf.size());
             }
 
             last_time_position = t;

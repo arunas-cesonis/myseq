@@ -158,7 +158,10 @@ START_NAMESPACE_DISTRHO
 
         void read_stats() {
             if (stats_reader_shm.has_value()) {
-                stats.emplace(*(stats_reader_shm->read()));
+                myseq::Stats *s = stats_reader_shm->read();
+                if (nullptr != s) {
+                    stats.emplace(*s);
+                }
             }
         }
 
