@@ -1,7 +1,8 @@
+- [ ] Tied notes
 - [x] Apply incoming velocity
 - [x] Make 32 steps always visible
-- [ ] Add "Play current pattern", like in Renoise
-- [ ] Feedback on which step is being played, etc
+- [x] Add "Play current pattern", like in Renoise
+- [x] Feedback on which step is being played, etc
 - [ ] Buttons to x2 :2 pattern length
 - [x] Deselect when clicking away
 - [ ] Quicker way to dupe and play patterns
@@ -10,5 +11,4 @@
 - [x] Just select starting octave for pattern and keep it to 16 semitones for now
 - [x] Mote traditional rectangle select instead of "drawing over"
 - [ ] MIDI log
-- [ ] Tied notes
 - [ ] Recording
