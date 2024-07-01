@@ -1,7 +1,7 @@
 /*
  * Dear ImGui for DPF
  * Copyright (C) 2021 Jean Pierre Cimalando <jp-dev@inbox.ru>
- * Copyright (C) 2021-2023 Filipe Coelho <falktx@falktx.com>
+ * Copyright (C) 2021-2024 Filipe Coelho <falktx@falktx.com>
  *
  * Permission to use, copy, modify, and/or distribute this software for any purpose with
  * or without fee is hereby granted, provided that the above copyright notice and this
@@ -22,7 +22,6 @@
 #include "StandaloneWindow.hpp"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
-#define IMGUI_DISABLE_OBSOLETE_KEYIO
 
 #include "DearImGui/imgui.h"
 #include "DearImGuiKnobs/imgui-knobs.h"
@@ -122,3 +121,18 @@ typedef ImGuiWidget<StandaloneWindow> ImGuiStandaloneWindow;
 // --------------------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DGL
+
+// --------------------------------------------------------------------------------------------------------------------
+// extra ImGui calls
+
+namespace ImGui {
+
+// --------------------------------------------------------------------------------------------------------------------
+// custom ImGui LabelText implementation for right alignment
+
+void RightAlignedLabelText(const char* label, const char* fmt, ...);
+void RightAlignedLabelTextV(const char* label, const char* fmt, va_list args);
+
+// --------------------------------------------------------------------------------------------------------------------
+
+}
