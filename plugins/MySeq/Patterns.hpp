@@ -461,7 +461,7 @@ namespace myseq {
             return get_pattern(selected);
         }
 
-        const Pattern &get_selected_pattern() const {
+        [[nodiscard]] const Pattern &get_selected_pattern() const {
             return get_pattern(selected);
         }
 

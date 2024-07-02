@@ -49,6 +49,7 @@ namespace myseq {
         ipc::mapped_region shm_reg;
 
         explicit StatsWriterShm(const char *name) {
+            d_debug("create StatsWriterShm: %s", name);
             shm_obj = ipc::shared_memory_object(ipc::open_or_create, name, ipc::read_write);
             shm_obj.truncate(1024);
             shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
@@ -56,6 +57,7 @@ namespace myseq {
         }
 
         ~StatsWriterShm() {
+            d_debug("destroy StatsWriterShm: %s", shm_obj.get_name());
             ipc::shared_memory_object::remove(shm_obj.get_name());
         }
 
@@ -70,11 +72,13 @@ namespace myseq {
         ipc::mapped_region shm_reg;
 
         explicit StatsReaderShm(const char *name) {
+            d_debug("create StatsReaderShm: %s", name);
             shm_obj = ipc::shared_memory_object(ipc::open_or_create, name, ipc::read_only);
             shm_reg = ipc::mapped_region(shm_obj, ipc::read_only, 0, 1024);
         }
 
         ~StatsReaderShm() {
+            d_debug("destroy StatsWriterShm: %s", shm_obj.get_name());
             ipc::shared_memory_object::remove(shm_obj.get_name());
         }
 

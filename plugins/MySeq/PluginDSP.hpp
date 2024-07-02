@@ -26,6 +26,7 @@ START_NAMESPACE_DISTRHO
         /**
            Plugin class constructor.
            You must set all parameter values to their defaults, matching ParameterRanges::def.
+
          */
         myseq::Player player;
         myseq::State state;
@@ -33,11 +34,6 @@ START_NAMESPACE_DISTRHO
         TimePosition last_time_position;
         int iteration = 0;
         bool prev_play_selected = false;
-        enum class ShmStatus {
-            Unavailable,
-            Configuring,
-            Ready
-        } shm_status = ShmStatus::Unavailable;
 
         myseq::Stats stats;
         std::optional<myseq::StatsWriterShm> stats_writer_shm;
@@ -199,25 +195,20 @@ START_NAMESPACE_DISTRHO
         //}
 
         void setState(const char *key, const char *value) override {
-            //d_debug("PluginDSP: setState: key=%s", key);
+            d_debug("PluginDSP: setState: key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "instance_id") == 0) {
-                if (!stats_writer_shm.has_value()) {
-                    d_debug("PluginDSP: init_shm: configuring");
-                    assert(shm_status != ShmStatus::Ready);
-                    shm_status = ShmStatus::Configuring;
-                    instance_id = value;
-                    stats_writer_shm.emplace(instance_id.c_str());
-                    shm_status = ShmStatus::Ready;
-                    // init_shm();
-                }
+                instance_id = value;
+                d_debug("PluginDSP: reconfiguring instance_id=%s", value);
+                stats_writer_shm.emplace(instance_id.c_str());
             } else {
                 assert(false);
             }
         }
 
         String getState(const char *key) const override {
+            d_debug("PluginDSP: getState: key=%s instance_id=%s", key, instance_id.c_str());
             if (std::strcmp(key, "pattern") == 0) {
                 return String(state.to_json_string().c_str());
             } else if (std::strcmp(key, "instance_id") == 0) {
@@ -238,12 +229,12 @@ START_NAMESPACE_DISTRHO
         void initState(uint32_t index, State &st) override {
             //   state.key = "ticks";
             //    state.defaultValue = "0";
-            d_debug("PluginDSP: initState index=%d\n", index);
+            d_debug("PluginDSP: initState index=%d", index);
             DISTRHO_SAFE_ASSERT(index <= 1);
             switch (index) {
                 case 0:
                     st.key = "pattern";
-                    st.label = "Pattern";
+                    st.label = "pattern";
                     state = myseq::State();
                     //{"selected":0,"patterns":[{"width":32,"id":0,"height":128,"first_note":0,"last_note":15,"cursor_x":0,"cursor_y":91," cells":[{"x":0,"y":91,"v":127},{"x":4,"y":91,"v":127},{"x":8,"y":91,"v":127},{"x":16,"y":91,"v":127},{"x":20,"y":91,"v":127},{"x":12,"y":91,"v":127},{"x":24,"y":91,"v":127}]}]}
                     st.defaultValue = String(state.to_json_string().c_str());

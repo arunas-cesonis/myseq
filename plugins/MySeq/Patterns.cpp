@@ -38,21 +38,30 @@ namespace myseq {
     }
 
     State State::from_json_string(const char *s) {
+        d_debug("A %d", __LINE__);
         rapidjson::Document d;
+        d_debug("A %d", __LINE__);
         rapidjson::ParseResult ok = d.Parse(s);
+        d_debug("A %d", __LINE__);
         if (!ok) {
             fprintf(stderr, "JSON parse error: %s (%lu)",
                     rapidjson::GetParseError_En(ok.Code()), ok.Offset());
             exit(EXIT_FAILURE);
         }
+        d_debug("A %d", __LINE__);
         auto arr = d["patterns"].GetArray();
         State state;
+        d_debug("A %d", __LINE__);
         state.selected = d["selected"].GetInt();
+        d_debug("A %d", __LINE__);
         state.play_selected = d.HasMember("play_selected") ? d["play_selected"].GetBool() : false;
+        d_debug("A %d", __LINE__);
         for (rapidjson::SizeType i = 0; i < arr.Size(); i++) {
             auto obj = arr[i].GetObject();
             state.patterns.push_back(pattern_from_json(obj));
+            d_debug("A %d", __LINE__);
         }
+        d_debug("A %d", __LINE__);
         return state;
     }
 

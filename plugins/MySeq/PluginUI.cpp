@@ -1,5 +1,4 @@
 #include <algorithm>
-#include <stack>
 #include <unordered_set>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
@@ -12,8 +11,6 @@ START_NAMESPACE_DISTRHO
 
 // #define SET_DIRTY() { d_debug("dirty: %d", __LINE__);  dirty = true; }
 #define SET_DIRTY() {   dirty = true; }
-#define PUSH_UNDO() {  d_debug("PUSH_UNDO"); undo_stack.push(undo_stack.top()); }
-#define POP_UNDO() {  d_debug("POP_UNDO"); undo_stack.pop(); }
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -85,13 +82,13 @@ START_NAMESPACE_DISTRHO
 
     class MySeqUI : public UI {
     public:
-        std::stack<myseq::State> undo_stack = {};
         uint8_t drag_started_velocity = 0;
         std::vector<std::pair<V2i, uint8_t>> drag_started_velocity_vec;
         std::unordered_set<V2i, myseq::V2iHash> moving_cells_set;
         V2i drag_started_cell;
         V2i previous_move_offset;
         bool drag_started_selected = false;
+
         ImVec2 drag_started_mpos;
         int count = 0;
         ImVec2 offset;
@@ -106,6 +103,7 @@ START_NAMESPACE_DISTRHO
 
         std::optional<myseq::StatsReaderShm> stats_reader_shm;
         std::optional<myseq::Stats> stats;
+        myseq::State state;
 
 
         enum class Interaction {
@@ -139,8 +137,6 @@ START_NAMESPACE_DISTRHO
                 : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
             const double scaleFactor = getScaleFactor();
 
-            undo_stack.emplace();
-
             myseq::test_serialize();
             init_shm();
 
@@ -165,22 +161,21 @@ START_NAMESPACE_DISTRHO
         void read_stats() {
             if (stats_reader_shm.has_value()) {
                 myseq::Stats *s = stats_reader_shm->read();
+
                 if (nullptr != s) {
                     stats.emplace(*s);
                 }
             }
         }
 
-        myseq::State &state() {
-            return undo_stack.top();
-        }
 
         void publish() {
-            auto s = state().to_json_string();
+            auto s = state.to_json_string();
             publish_last_bytes = (int) s.length();
+            d_debug("PluginUI: setSatte key=pattern value=%s", s.c_str());
             setState("pattern", s.c_str());
 // #ifdef DEBUG
-            state() = myseq::State::from_json_string(s.c_str());
+            state = myseq::State::from_json_string(s.c_str());
             publish_count += 1;
 // #endif
         }
@@ -521,18 +516,22 @@ START_NAMESPACE_DISTRHO
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
                             if (cursor_hovers_grid) {
+                                const auto x1 = std::min(mcell.x, drag_started_cell.x);
+                                const auto y1 = drag_started_cell.y;
+                                const auto n = mcell.x - drag_started_cell.x + 1;
+                                const auto xy = V2i(x1, y1);
+                                p.set_velocity(xy, 127);
                                 // p.set_selected(cell, !drag_started_selected);
-                                for (int x = mcell.x; x < drag_started_cell.x; x++) {
-                                    p.set_velocity(V2i(x, drag_started_cell.y), 127, "DrawingLongCell");
-                                }
-                                for (int x = mcell.x + 1; x < drag_started_cell.x; x++) {
-                                    p.set_velocity(V2i(x, drag_started_cell.y), 127, "DrawingLongCell");
-                                }
-                                SET_DIRTY();
+                                //for (int x = mcell.x; x < drag_started_cell.x; x++) {
+                                //    p.set_velocity(V2i(x, drag_started_cell.y), 127, "DrawingLongCell");
+                                //}
+                                //for (int x = mcell.x + 1; x < drag_started_cell.x; x++) {
+                                //    p.set_velocity(V2i(x, drag_started_cell.y), 127, "DrawingLongCell");
+                                //}
+//                                SET_DIRTY();
                             }
                         }
                     } else {
-                        POP_UNDO();
                         interaction = Interaction::None;
                     }
                     break;
@@ -641,9 +640,8 @@ START_NAMESPACE_DISTRHO
                         if (cursor_hovers_grid) {
                             if (ImGui::IsKeyDown(ImGuiKey_T)) {
                                 interaction = Interaction::DrawingLongCell;
-                                PUSH_UNDO();
-                                state().get_selected_pattern().set_velocity(mcell, 127,
-                                                                            "ImGuiKey_T init DrawingLongCell");
+                                state.get_selected_pattern().set_velocity(mcell, 127,
+                                                                          "ImGuiKey_T init DrawingLongCell");
                                 drag_started_mpos = mpos;
                                 drag_started_cell = mcell;
                             } else if (ctrl_held) {
@@ -756,7 +754,7 @@ START_NAMESPACE_DISTRHO
         }
 
         void show_grid(bool &dirty) {
-            auto &p = state().get_selected_pattern();
+            auto &p = state.get_selected_pattern();
             const auto &aps = get_pattern_stats(p.get_id());
             float cell_padding = 4.0;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
@@ -936,9 +934,10 @@ START_NAMESPACE_DISTRHO
             bool create = false;
             bool delete_ = false;
             bool duplicate = false;
-            if (state().num_patterns() == 0) {
-                state().selected = state().create_pattern().id;
-                auto &cur = state().get_selected_pattern().cursor;
+
+            if (state.num_patterns() == 0) {
+                state.selected = state.create_pattern().id;
+                auto &cur = state.get_selected_pattern().cursor;
                 cur.x = 0;
                 cur.y = 127 - 24;
                 SET_DIRTY();
@@ -974,15 +973,15 @@ START_NAMESPACE_DISTRHO
                     ImGui::TableSetupColumn("last note", ImGuiTableColumnFlags_None, 0.0, 3);
                     ImGui::TableSetupColumn("playing", ImGuiTableColumnFlags_None, 0.0, 3);
                     ImGui::TableHeadersRow();
-                    state().each_pattern([&](const myseq::Pattern &pp) {
+                    state.each_pattern([&](const myseq::Pattern &pp) {
                         ImGui::TableNextRow();
 
                         // id
                         ImGui::TableNextColumn();
                         int flags = ImGuiSelectableFlags_None;
                         const auto id = pp.id;
-                        if (ImGui::Selectable(std::to_string(id).c_str(), state().selected == id, flags)) {
-                            state().selected = id;
+                        if (ImGui::Selectable(std::to_string(id).c_str(), state.selected == id, flags)) {
+                            state.selected = id;
                             SET_DIRTY();
                         }
 
@@ -993,7 +992,7 @@ START_NAMESPACE_DISTRHO
                         // first_note
                         ImGui::TableNextColumn();
                         ImGui::PushID(id);
-                        myseq::Pattern &tmp = state().get_pattern(id);
+                        myseq::Pattern &tmp = state.get_pattern(id);
                         ImGui::PushID(1);
                         const auto first_note = note_select(tmp.first_note);
                         if (tmp.first_note != first_note) {
@@ -1032,14 +1031,14 @@ START_NAMESPACE_DISTRHO
                 }
 
 
-                if (ImGui::Checkbox("Play selected pattern", &state().play_selected)) {
+                if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
                     SET_DIRTY();
                 }
 
                 ImGui::EndGroup();
 
                 {
-                    auto &p = state().get_selected_pattern();
+                    auto &p = state.get_selected_pattern();
                     int pattern_width_slider_value = p.width;
                     if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
                                          ImGuiSliderFlags_None)) {
@@ -1048,7 +1047,7 @@ START_NAMESPACE_DISTRHO
                     }
                 }
 
-                show_keys(state().get_selected_pattern());
+                show_keys(state.get_selected_pattern());
 
                 if (ImGui::Button("Show metrics")) {
                     show_metrics = true;
@@ -1067,7 +1066,7 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("tick=%f", tc.global_tick());
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
                 int selected_cells_count = 0;
-                state().get_selected_pattern().each_selected_cell(
+                state.get_selected_pattern().each_selected_cell(
                         [&selected_cells_count](const myseq::Cell &c, const V2i &v) {
                             selected_cells_count += 1;
                         });
@@ -1133,13 +1132,13 @@ START_NAMESPACE_DISTRHO
 
             ImGui::End();
             if (create) {
-                state().selected = state().create_pattern().id;
+                state.selected = state.create_pattern().id;
             }
             if (delete_) {
-                state().delete_pattern(state().selected);
+                state.delete_pattern(state.selected);
             }
             if (duplicate) {
-                state().selected = state().duplicate_pattern(state().selected).id;
+                state.selected = state.duplicate_pattern(state.selected).id;
             }
             if (dirty) {
                 publish();
@@ -1151,9 +1150,9 @@ START_NAMESPACE_DISTRHO
         }
 
         void stateChanged(const char *key, const char *value) override {
-            d_debug("PluginUI: stateChanged key=%s", key);
+            d_debug("PluginUI: stateChanged key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
-                state() = myseq::State::from_json_string(value);
+                state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "instance_id") == 0) {
                 d_debug("PluginUI: stateChanged instance_id=%s new=%s", instance_id.c_str(), value);
                 if (std::strcmp(instance_id.c_str(), value) != 0) {
