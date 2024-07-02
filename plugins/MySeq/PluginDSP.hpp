@@ -199,7 +199,7 @@ START_NAMESPACE_DISTRHO
         //}
 
         void setState(const char *key, const char *value) override {
-            d_debug("PluginDSP: setState: key=%s", key);
+            //d_debug("PluginDSP: setState: key=%s", key);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "instance_id") == 0) {

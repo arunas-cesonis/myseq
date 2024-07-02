@@ -31,7 +31,7 @@ namespace myseq {
             const auto v = V2i(x, y);
             auto velocity = static_cast<uint8_t>(cobj["v"].GetInt());
             bool selected = cobj.HasMember("s") ? static_cast<uint8_t>(cobj["s"].GetBool()) : false;
-            p.set_velocity(v, velocity);
+            p.set_velocity(v, velocity, "JSON");
             p.set_selected(v, selected);
         }
         return p;

@@ -273,7 +273,10 @@ namespace myseq {
             return count;
         }
 
-        void set_velocity(const V2i &v, uint8_t velocity) {
+        void set_velocity(const V2i &v, uint8_t velocity, const char *caller_name = nullptr) {
+            if (caller_name != nullptr) {
+                // d_debug("set_velocity %d %d %d %s", v.x, v.y, velocity, caller_name);
+            }
             if (velocity == 0) {
                 if (exists(v))
                     clear_cell(v);
