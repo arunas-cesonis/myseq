@@ -101,14 +101,11 @@ START_NAMESPACE_DISTRHO
                          [[maybe_unused]] uint32_t midiEventCount, const myseq::TimePositionCalc &tc,
                          const myseq::TimeParams &tp) {
 
-            if (state.play_selected != prev_play_selected) {
-                if (state.play_selected) {
-                    player.start_selected_pattern(state);
-                } else {
-                    player.stop_selected_pattern(state);
-                }
-            } else if (state.play_selected) {
-                player.update_selected_pattern(state);
+            // if only currently selected (in the UI) pattern should be played
+            if (state.play_selected) {
+                player.ensure_playing_selected_pattern(state);
+            } else if (prev_play_selected) {
+                player.stop_all();
             }
 
             if (!state.play_selected) {
@@ -164,6 +161,7 @@ START_NAMESPACE_DISTRHO
 
             if (inputs[1] != outputs[1])
                 std::memcpy(outputs[1], inputs[1], sizeof(float) * frames);
+
 
             const TimePosition &t = getTimePosition();
             const myseq::TimePositionCalc tc(t, getSampleRate());

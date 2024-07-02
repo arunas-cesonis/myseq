@@ -59,13 +59,13 @@ START_NAMESPACE_DISTRHO
         };
     }
 
-ImColor add_to_rgb(ImColor color, float amount) {
+    ImColor add_to_rgb(ImColor color, float amount) {
         return clamp_color({
-                color.Value.x + amount,
-                color.Value.y + amount,
-                color.Value.z + amount,
-                color.Value.w
-        });
+                                   color.Value.x + amount,
+                                   color.Value.y + amount,
+                                   color.Value.z + amount,
+                                   color.Value.w
+                           });
     }
 
     // ImColor invert_color(ImColor color) {
@@ -108,6 +108,7 @@ ImColor add_to_rgb(ImColor color, float amount) {
         enum class Interaction {
             None,
             DrawingCells,
+            DrawingLongCell,
             AdjustingVelocity,
             KeysSelect,
             DragSelectingCells,
@@ -192,6 +193,8 @@ ImColor add_to_rgb(ImColor color, float amount) {
                     return "None";
                 case Interaction::DrawingCells:
                     return "DrawingCells";
+                case Interaction::DrawingLongCell:
+                    return "DrawingLongCell";
                 case Interaction::AdjustingVelocity:
                     return "AdjustingVelocity";
                 case Interaction::KeysSelect:
@@ -505,6 +508,25 @@ ImColor add_to_rgb(ImColor color, float amount) {
                     }
                     break;
                 }
+
+                case Interaction::DrawingLongCell: {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                            if (cursor_hovers_grid) {
+                                // p.set_selected(cell, !drag_started_selected);
+                                d_debug("DRAW %d %d", cell.x, cell.y);
+                                for (int x = cell.x; x < drag_started_cell.x; x++) {
+                                    p.set_velocity(V2i(x, drag_started_cell.y), 127);
+                                }
+                                SET_DIRTY();
+                            }
+                        }
+                    } else {
+                        interaction = Interaction::None;
+                    }
+                    break;
+                }
+
                 case Interaction::AdjustingVelocity: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (cursor_hovers_grid) {
@@ -603,11 +625,15 @@ ImColor add_to_rgb(ImColor color, float amount) {
                         interaction = Interaction::None;
                     }
 
-
                 case Interaction::None:
                     if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                         if (cursor_hovers_grid) {
-                            if (ctrl_held) {
+                            if (ImGui::IsKeyDown(ImGuiKey_T)) {
+                                interaction = Interaction::DrawingLongCell;
+                                p.set_velocity(cell, 127);
+                                drag_started_mpos = mpos;
+                                drag_started_cell = cell;
+                            } else if (ctrl_held) {
                                 interaction = Interaction::AdjustingVelocity;
                                 drag_started_velocity = p.get_velocity(cell);
                                 drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
@@ -720,7 +746,7 @@ ImColor add_to_rgb(ImColor color, float amount) {
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             float grid_width = ImGui::CalcItemWidth();
             const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
-            const auto inactive_cell = ImColor(0x45, 0x45, 0x45);
+            const auto inactive_cell = ImColor(0x25, 0x25, 0x25);
             const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
 
@@ -755,7 +781,7 @@ ImColor add_to_rgb(ImColor color, float amount) {
 
             int active_column = -1;
             if (aps.has_value()) {
-                active_column = (int) std::floor((double)p.width * (aps->time / aps->duration));
+                active_column = (int) std::floor((double) p.width * (aps->time / aps->duration));
             }
 
             for (auto j = first_visible_col; j <= last_visible_col; j++) {
@@ -791,9 +817,10 @@ ImColor add_to_rgb(ImColor color, float amount) {
                     // auto quarter_fade = is_black_key(note) ? 0.8f : 1.f;
                     if (interaction == Interaction::MovingCells) {
                         if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
-                            auto tmp = cell_color1.Value.y;
-                            cell_color1.Value.y = cell_color1.Value.z;
-                            cell_color1.Value.z = tmp;
+                            //auto tmp = cell_color1.Value.y;
+                            //cell_color1.Value.y = cell_color1.Value.z;
+                            cell_color1 = IM_COL32_WHITE;
+                            //cell_color1.Value.z = tmp;
                             // cell_color1 = ImColor(0x5a, 0x8a, 0xcf);
                         }
                     }
@@ -820,7 +847,7 @@ ImColor add_to_rgb(ImColor color, float amount) {
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
                         draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
                     } else if (vel > 0 && sel) {
-                        //draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
+                        draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
                     }
                 }
             }

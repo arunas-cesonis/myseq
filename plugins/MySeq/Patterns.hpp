@@ -86,6 +86,7 @@ namespace myseq {
     struct Cell {
         uint8_t velocity;
         bool selected;
+        int tied; //
     };
 
     struct Note {
@@ -183,18 +184,6 @@ namespace myseq {
                                                                                                    last_note(last_note),
                                                                                                    cursor(cursor) {
             grid.resize(width * height);
-        }
-
-        [[nodiscard]] const std::string debug_print() const {
-            std::ostringstream oss;
-            int n = 0;
-            oss << "[";
-            for (const auto pair: cells) {
-                oss << "(" << pair.first.x << ", " << pair.first.y << ", " << (int) pair.second.velocity << ", "
-                    << pair.second.selected << ")";
-            }
-            oss << "]";
-            return oss.str();
         }
 
         template<typename F>
@@ -400,8 +389,6 @@ namespace myseq {
             return max + 1;
         }
 
-        //State() = default;
-
         [[nodiscard]] Opaque to_json() const;
 
         [[nodiscard]] std::string to_json_string() const;
@@ -468,6 +455,10 @@ namespace myseq {
         }
 
         Pattern &get_selected_pattern() {
+            return get_pattern(selected);
+        }
+
+        const Pattern &get_selected_pattern() const {
             return get_pattern(selected);
         }
 

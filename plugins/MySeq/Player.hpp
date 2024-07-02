@@ -68,26 +68,12 @@ namespace myseq {
     };
 
     struct ActivePattern {
-        int pattern_id{};
-        double start_time{};
-        double end_time{};
-        bool finished{};
+        int pattern_id;
+        double start_time;
+        double end_time;
+        bool finished;
         Note note;
         uint8_t velocity;
-        bool selected{};
-
-        ActivePattern() = default;
-
-        ActivePattern(int pattern_id, double start_time, double end_time, bool finished, Note note, uint8_t velocity)
-                : pattern_id(
-                pattern_id),
-                  start_time(
-                          start_time),
-                  end_time(
-                          end_time),
-                  finished(
-                          finished),
-                  note(note), velocity(velocity) {}
     };
 
 
@@ -104,36 +90,11 @@ namespace myseq {
             return percent_from_start * pattern_duration;
         }
 
-        void
-        start_selected_pattern(const State &state) {
-            stop_all();
-            ActivePattern ap(state.selected, 0.0, 0.0, false, Note(255, 255), 127);
-            ap.selected = true;
+        void ensure_playing_selected_pattern(const myseq::State &state) {
+            active_patterns.clear();
+            auto &p = state.get_selected_pattern();
+            const ActivePattern ap = {p.get_id(), 0.0, 0.0, false, Note(p.get_first_note(), 0), 127};
             active_patterns.push_back(ap);
-        }
-
-        void
-        update_selected_pattern(const State &state) {
-            for (auto it = active_patterns.begin(); it != active_patterns.end();) {
-                if (it->selected) {
-                    *it = ActivePattern(state.selected, 0.0, 0.0, false, Note(255, 255), 127);
-                    it->selected = true;
-                    return;
-                } else {
-                    ++it;
-                }
-            }
-        }
-
-        void
-        stop_selected_pattern(const State &state) {
-            for (auto it = active_patterns.begin(); it != active_patterns.end();) {
-                if (it->selected) {
-                    it = active_patterns.erase(it);
-                } else {
-                    ++it;
-                }
-            }
         }
 
         void
@@ -149,7 +110,7 @@ namespace myseq {
                     continue;
                 }
                 const auto new_start_time = start_time - pattern_start_time_offset(p, note, tp);
-                active_patterns.push_back(ActivePattern(p.get_id(), new_start_time, 0.0, false, note, velocity));
+                active_patterns.push_back({p.get_id(), new_start_time, 0.0, false, note, velocity});
             }
         }
 
