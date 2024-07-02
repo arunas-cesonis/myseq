@@ -516,11 +516,11 @@ START_NAMESPACE_DISTRHO
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
                             if (cursor_hovers_grid) {
-                                const auto x1 = std::min(mcell.x, drag_started_cell.x);
-                                const auto y1 = drag_started_cell.y;
-                                const auto n = mcell.x - drag_started_cell.x + 1;
-                                const auto xy = V2i(x1, y1);
-                                p.set_velocity(xy, 127);
+                                //const auto x1 = std::min(mcell.x, drag_started_cell.x);
+                                //const auto y1 = drag_started_cell.y;
+                                //const auto n = mcell.x - drag_started_cell.x + 1;
+                                //const auto xy = V2i(x1, y1);
+                                //p.set_velocity(xy, 127);
                                 // p.set_selected(cell, !drag_started_selected);
                                 //for (int x = mcell.x; x < drag_started_cell.x; x++) {
                                 //    p.set_velocity(V2i(x, drag_started_cell.y), 127, "DrawingLongCell");
@@ -532,6 +532,7 @@ START_NAMESPACE_DISTRHO
                             }
                         }
                     } else {
+
                         interaction = Interaction::None;
                     }
                     break;
@@ -640,8 +641,8 @@ START_NAMESPACE_DISTRHO
                         if (cursor_hovers_grid) {
                             if (ImGui::IsKeyDown(ImGuiKey_T)) {
                                 interaction = Interaction::DrawingLongCell;
-                                state.get_selected_pattern().set_velocity(mcell, 127,
-                                                                          "ImGuiKey_T init DrawingLongCell");
+                                // state.get_selected_pattern().set_velocity(mcell, 127,
+                                //                                         "ImGuiKey_T init DrawingLongCell");
                                 drag_started_mpos = mpos;
                                 drag_started_cell = mcell;
                             } else if (ctrl_held) {
