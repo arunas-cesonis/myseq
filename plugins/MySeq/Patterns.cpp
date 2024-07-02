@@ -88,12 +88,12 @@ namespace myseq {
                 .AddMember("cursor_y", pattern.cursor.y, allocator);
         //d.GetObject().AddMember("data", height, d.GetAllocator());
         rapidjson::Value data_arr(rapidjson::kArrayType);
-        pattern.each_cell([&](const Cell &cell, const V2i &coords) {
+        pattern.each_cell([&](const Cell &cell) {
             rapidjson::Value o(rapidjson::kObjectType);
             auto ob = o.GetObject();
             assert(cell.velocity > 0);
-            ob.AddMember("x", coords.x, allocator)
-                    .AddMember("y", coords.y, allocator)
+            ob.AddMember("x", cell.position.x, allocator)
+                    .AddMember("y", cell.position.y, allocator)
                     .AddMember("v", (int) cell.velocity, allocator);
             if (cell.selected) {
                 ob.AddMember("s", (bool) cell.selected, allocator);

@@ -96,12 +96,12 @@ START_NAMESPACE_DISTRHO
         static constexpr int visible_columns = 32;
         float default_cell_width = 30.0f;
         float default_cell_height = 24.0f;
-        std::vector<std::pair<myseq::Cell, V2i>> clipboard;
+        std::vector<myseq::Cell> clipboard;
         std::string instance_id = myseq::utils::gen_instance_id();
 
         bool show_metrics = false;
 
-        std::optional<myseq::StatsReaderShm> stats_reader_shm;
+        // std::optional<myseq::StatsReaderShm> stats_reader_shm;
         std::optional<myseq::Stats> stats;
         myseq::State state;
 
@@ -124,9 +124,9 @@ START_NAMESPACE_DISTRHO
         };
         InputMode input_mode = InputMode::Drawing;
 
-        void init_shm() {
-            stats_reader_shm.emplace(instance_id.c_str());
-        }
+//        void init_shm() {
+//            stats_reader_shm.emplace(instance_id.c_str());
+//        }
 
 
         /**
@@ -138,7 +138,7 @@ START_NAMESPACE_DISTRHO
             const double scaleFactor = getScaleFactor();
 
             myseq::test_serialize();
-            init_shm();
+            // init_shm();
 
             offset = ImVec2(0.0f, -default_cell_height * (float) (visible_rows + 72));
 
@@ -158,15 +158,15 @@ START_NAMESPACE_DISTRHO
         int publish_count = 0;
         int publish_last_bytes = 0;
 
-        void read_stats() {
-            if (stats_reader_shm.has_value()) {
-                myseq::Stats *s = stats_reader_shm->read();
-
-                if (nullptr != s) {
-                    stats.emplace(*s);
-                }
-            }
-        }
+//        void read_stats() {
+//            if (stats_reader_shm.has_value()) {
+//                myseq::Stats *s = stats_reader_shm->read();
+//
+//                if (nullptr != s) {
+//                    stats.emplace(*s);
+//                }
+//            }
+//        }
 
 
         void publish() {
@@ -379,13 +379,13 @@ START_NAMESPACE_DISTRHO
         grid_copy(const myseq::Pattern &p) {
             clipboard.clear();
             V2i top_left(p.width, p.height);
-            p.each_selected_cell([&](const myseq::Cell &cell, const V2i &coords) {
-                top_left.x = std::min(coords.x, top_left.x);
-                top_left.y = std::min(coords.y, top_left.y);
-                clipboard.emplace_back(cell, coords);
+            p.each_selected_cell([&](const myseq::Cell &cell) {
+                top_left.x = std::min(cell.position.x, top_left.x);
+                top_left.y = std::min(cell.position.y, top_left.y);
+                clipboard.emplace_back(cell);
             });
             for (auto &i: clipboard) {
-                i.second -= top_left;
+                i.position -= top_left;
             }
         }
 
@@ -532,7 +532,12 @@ START_NAMESPACE_DISTRHO
                             }
                         }
                     } else {
-
+                        const auto x1 = std::min(mcell.x, drag_started_cell.x);
+                        const auto x2 = std::max(mcell.x, drag_started_cell.x);
+                        const auto y = drag_started_cell.y;
+                        const auto c = V2i(x1, y);
+                        const auto n = x2 - x1;
+                        p.set_velocity(c, 127);
                         interaction = Interaction::None;
                     }
                     break;
@@ -650,8 +655,8 @@ START_NAMESPACE_DISTRHO
                                 drag_started_velocity = p.get_velocity(mcell);
                                 drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
                                 drag_started_velocity_vec.clear();
-                                p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
-                                    drag_started_velocity_vec.push_back({v, c.velocity});
+                                p.each_selected_cell([&](const myseq::Cell &c) {
+                                    drag_started_velocity_vec.push_back({c.position, c.velocity});
                                 });
                                 drag_started_mpos = mpos;
                                 drag_started_cell = mcell;
@@ -660,8 +665,8 @@ START_NAMESPACE_DISTRHO
                                 drag_started_cell = mcell;
                                 previous_move_offset = V2i(0, 0);
                                 moving_cells_set.clear();
-                                p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
-                                    moving_cells_set.insert(v);
+                                p.each_selected_cell([&](const myseq::Cell &c) {
+                                    moving_cells_set.insert(c.position);
                                 });
                                 interaction = Interaction::MovingCells;
                             } else if (input_mode == InputMode::Selecting || shift_held) {
@@ -689,14 +694,14 @@ START_NAMESPACE_DISTRHO
                     } else {
                         if (cmd_held) {
                             if (ImGui::IsKeyPressed(ImGuiKey_A)) {
-                                p.each_cell([&](const myseq::Cell &c, const V2i &v) {
-                                    p.set_selected(v, true);
+                                p.each_cell([&](const myseq::Cell &c) {
+                                    p.set_selected(c.position, true);
                                 });
                                 SET_DIRTY();
                             }
                         } else if (ImGui::IsKeyPressed(ImGuiKey_Backspace) || ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-                            p.each_selected_cell([&](const myseq::Cell &c, const V2i &v) {
-                                p.clear_cell(v);
+                            p.each_selected_cell([&](const myseq::Cell &c) {
+                                p.clear_cell(c.position);
                             });
                             SET_DIRTY();
                         }
@@ -919,7 +924,8 @@ START_NAMESPACE_DISTRHO
             // ImGui::SetNextWindowPos(ImVec2(0, 0));
             //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
 
-            read_stats();
+            //read_stats();
+            stats = ((MySeqPlugin *) (this->getPluginInstancePointer()))->stats;
 
             int window_flags =
                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
@@ -1068,7 +1074,7 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
                 int selected_cells_count = 0;
                 state.get_selected_pattern().each_selected_cell(
-                        [&selected_cells_count](const myseq::Cell &c, const V2i &v) {
+                        [&selected_cells_count](const myseq::Cell &c) {
                             selected_cells_count += 1;
                         });
                 ImGui::Text("instance_id=%s", instance_id.c_str());
@@ -1156,13 +1162,13 @@ START_NAMESPACE_DISTRHO
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "instance_id") == 0) {
                 d_debug("PluginUI: stateChanged instance_id=%s new=%s", instance_id.c_str(), value);
-                if (std::strcmp(instance_id.c_str(), value) != 0) {
-                    d_debug("PluginUI: reinitialzing shm");
-                    instance_id = std::string(value);
-                    init_shm();
-                } else {
-                    d_debug("PluginUI: will do nothing for same value");
-                }
+                //if (std::strcmp(instance_id.c_str(), value) != 0) {
+                //    d_debug("PluginUI: reinitialzing shm");
+                //    instance_id = std::string(value);
+                //    init_shm();
+                //} else {
+                //    d_debug("PluginUI: will do nothing for same value");
+                //}
             }
         }
         // ----------------------------------------------------------------------------------------------------------------

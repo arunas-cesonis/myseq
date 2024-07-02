@@ -36,7 +36,6 @@ START_NAMESPACE_DISTRHO
         bool prev_play_selected = false;
 
         myseq::Stats stats;
-        std::optional<myseq::StatsWriterShm> stats_writer_shm;
 
         MySeqPlugin()
                 : Plugin(0, 0, 2) {
@@ -165,43 +164,20 @@ START_NAMESPACE_DISTRHO
                                           ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
 
             run_player1(frames, midiEvents, midiEventCount, tc, tp);
-            // run_player2(frames, midiEvents, midiEventCount);
 
-            if (stats_writer_shm.has_value()) {
-                stats.transport = myseq::transport_from_time_position(t);
-                stats.active_patterns.clear();
-                player.push_active_pattern_stats(stats, state, tp);
-                stats_writer_shm->write(stats);
-            }
+            stats.transport = myseq::transport_from_time_position(t);
+            stats.active_patterns.clear();
+            player.push_active_pattern_stats(stats, state, tp);
 
             last_time_position = t;
             iteration++;
         }
-
-        //void init_shm() {
-        //    stats_writer_shm.emplace(instance_id.c_str());
-        //    d_debug("PluginDSP: init_shm: %s", instance_id.c_str());
-        //    d_debug("PluginDSP: init_shm: creating shm_obj");
-        //    shm_obj = ipc::shared_memory_object(ipc::open_or_create, instance_id.c_str(), ipc::read_write);
-        //    d_debug("PluginDSP: init_shm: created shm_obj");
-        //    d_debug("PluginDSP: init_shm: resizing shm_obj");
-        //    shm_obj.truncate(1024);
-        //    d_debug("PluginDSP: init_shm: resized shm_obj");
-        //    d_debug("PluginDSP: init_shm: creating shm_reg");
-        //    shm_reg = ipc::mapped_region(shm_obj, ipc::read_write, 0, 1024);
-        //    d_debug("PluginDSP: init_shm: created shm_reg");
-        //    shm_status = ShmStatus::Ready;
-        //    d_debug("PluginDSP: init_shm: %s ready", instance_id.c_str());
-        //}
 
         void setState(const char *key, const char *value) override {
             d_debug("PluginDSP: setState: key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "instance_id") == 0) {
-                instance_id = value;
-                d_debug("PluginDSP: reconfiguring instance_id=%s", value);
-                stats_writer_shm.emplace(instance_id.c_str());
             } else {
                 assert(false);
             }

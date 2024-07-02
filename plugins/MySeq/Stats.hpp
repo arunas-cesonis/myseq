@@ -57,7 +57,7 @@ namespace myseq {
         }
 
         ~StatsWriterShm() {
-            d_debug("destroy StatsWriterShm: %s", shm_obj.get_name());
+            d_debug("destroy StatstWriterShm: %s", shm_obj.get_name());
             ipc::shared_memory_object::remove(shm_obj.get_name());
         }
 

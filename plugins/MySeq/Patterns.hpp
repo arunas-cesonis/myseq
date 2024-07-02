@@ -84,9 +84,9 @@ namespace myseq {
     };
 
     struct Cell {
+        V2i position;
         uint8_t velocity;
         bool selected;
-        int tied; //
     };
 
     struct Note {
@@ -146,7 +146,7 @@ namespace myseq {
     };
 
     class Pattern {
-        GenArray<std::pair<V2i, Cell>> cells;
+        GenArray<Cell> cells;
         std::valarray<Id> grid;
 
         [[nodiscard]] V2i index_to_coords(int index) const {
@@ -189,17 +189,15 @@ namespace myseq {
         template<typename F>
         void each_cell(F f) const {
             for (const auto &c: cells) {
-                const auto &loc = c.first;
-                const auto &cell = c.second;
-                f(cell, loc);
+                f(c);
             }
         }
 
         template<typename F>
         void each_selected_cell(F f) const {
-            each_cell([&f](const Cell &cell, const V2i &loc) {
+            each_cell([&f](const Cell &cell) {
                 if (cell.selected) {
-                    f(cell, loc);
+                    f(cell);
                 }
             });
         }
@@ -215,48 +213,48 @@ namespace myseq {
             const auto idx = coords_to_index(coords);
             const auto &cell_id = grid[idx];
             if (cells.exist(cell_id)) {
-                return cells.get(cell_id).second;
+                return cells.get(cell_id);
             } else {
-                const auto new_id = cells.push({coords, {}});
+                const Cell cell = {coords, 0, false};
+                const auto new_id = cells.push(cell);
                 grid[coords_to_index(coords)] = new_id;
-                return cells.get(new_id).second;
+                return cells.get(new_id);
             }
         }
 
-        void set_cell(const V2i &coords, const Cell &c) {
-            get_create_if_not_exists(coords) = c;
+        void set_cell(const Cell &c) {
+            get_create_if_not_exists(c.position) = c;
         }
 
         [[nodiscard]] const Cell &get_cell(const V2i &coords) const {
-            return cells.get(grid[coords_to_index(coords)]).second;
+            return cells.get(grid[coords_to_index(coords)]);
         }
 
         Cell &get_cell(const V2i &coords) {
-            return cells.get(grid[coords_to_index(coords)]).second;
+            return cells.get(grid[coords_to_index(coords)]);
         }
 
         void clear_cell(const V2i &coords) {
             cells.remove(grid[coords_to_index(coords)]);
         }
 
-        void put_cells(const std::vector<std::pair<Cell, V2i>> &cells, const V2i &at) {
-            for (const auto &pair: cells) {
-                const auto pos = pair.second + at;
-                // wrap around
-                auto wrapped = pos;
+        void put_cells(const std::vector<Cell> &cells, const V2i &at) {
+            for (auto cell: cells) {
+                auto wrapped = cell.position + at;
                 wrapped.x = wrapped.x % width;
                 wrapped.x += wrapped.x < 0 ? width : 0;
                 wrapped.y = wrapped.y % height;
                 wrapped.y += wrapped.y < 0 ? height : 0;
-                set_cell(wrapped, pair.first);
+                cell.position = wrapped;
+                set_cell(cell);
             }
         }
 
         void move_selected_cells(const V2i &delta) {
-            std::vector<std::pair<Cell, V2i>> removed;
-            each_selected_cell([&](const Cell &cell, const V2i &v) {
-                removed.emplace_back(cell, v);
-                clear_cell(v);
+            std::vector<Cell> removed;
+            each_selected_cell([&](const Cell &cell) {
+                removed.emplace_back(cell);
+                clear_cell(cell.position);
             });
             put_cells(removed, delta);
         }
@@ -264,8 +262,8 @@ namespace myseq {
         int deselect_all() {
             int count = 0;
             for (auto &c: cells) {
-                if (c.second.selected) {
-                    c.second.selected = false;
+                if (c.selected) {
+                    c.selected = false;
                     count++;
                 }
 
@@ -309,7 +307,7 @@ namespace myseq {
 
         void select_all() {
             for (auto &c: cells)
-                c.second.selected = true;
+                c.selected = true;
         }
 
         [[nodiscard]] bool get_selected(const V2i &v) const {
@@ -329,8 +327,8 @@ namespace myseq {
             }
 
             if (new_width < width) {
-                cells.erase(std::remove_if(cells.begin(), cells.end(), [new_width](const auto &pair) -> bool {
-                    return pair.first.x >= new_width;
+                cells.erase(std::remove_if(cells.begin(), cells.end(), [new_width](const auto &cell) -> bool {
+                    return cell.position.x >= new_width;
                 }), cells.end());
             }
 
