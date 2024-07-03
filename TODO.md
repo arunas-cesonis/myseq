@@ -1,4 +1,5 @@
 - [~] Tied notes
+- [ ] Simpler key range designation UX
 - [ ] Fix undo: pop does not set dirty=true
 - [ ] Fix undo: dragging & drawing should only push on mouse up
 - [x] Apply incoming velocity
