@@ -186,9 +186,11 @@ namespace myseq {
                         const auto column_index = i % p.width;
                         auto column_time = static_cast<double>(i) * tp.step_duration - pattern_time;
                         for (int row_index = 0; row_index < p.height; row_index++) {
-                            const auto v = p.get_velocity(V2i(column_index, row_index));
+                            const auto coords = V2i(column_index, row_index);
+                            const auto v = p.get_velocity(coords);
                             if (v > 0) {
-                                const auto step_end_time = window_start + column_time + tp.step_duration;
+                                const auto length = static_cast<double>(p.get_length(coords));
+                                const auto step_end_time = window_start + column_time + tp.step_duration * length;
                                 const auto note_end_time = ap.finished ? std::min(step_end_time,
                                                                                   ap.end_time)
                                                                        : step_end_time;

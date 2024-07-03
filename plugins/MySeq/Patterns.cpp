@@ -30,9 +30,11 @@ namespace myseq {
             int y = cobj["y"].GetInt();
             const auto v = V2i(x, y);
             auto velocity = static_cast<uint8_t>(cobj["v"].GetInt());
-            bool selected = cobj.HasMember("s") ? static_cast<uint8_t>(cobj["s"].GetBool()) : false;
+            bool selected = cobj.HasMember("s") ? (cobj["s"].GetBool()) : false;
+            int length = cobj.HasMember("n") ? (cobj["n"].GetInt()) : 1;
             p.set_velocity(v, velocity, "JSON");
             p.set_selected(v, selected);
+            p.set_length(v, length);
         }
         return p;
     }
@@ -97,6 +99,9 @@ namespace myseq {
                     .AddMember("v", (int) cell.velocity, allocator);
             if (cell.selected) {
                 ob.AddMember("s", (bool) cell.selected, allocator);
+            }
+            if (cell.length > 1) {
+                ob.AddMember("n", cell.length, allocator);
             }
             data_arr.PushBack(o, allocator);
         });

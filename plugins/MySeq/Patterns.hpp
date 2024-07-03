@@ -87,6 +87,7 @@ namespace myseq {
         V2i position;
         uint8_t velocity;
         bool selected;
+        int length;
     };
 
     struct Note {
@@ -215,7 +216,7 @@ namespace myseq {
             if (cells.exist(cell_id)) {
                 return cells.get(cell_id);
             } else {
-                const Cell cell = {coords, 0, false};
+                const Cell cell = {coords, 0, false, 1};
                 const auto new_id = cells.push(cell);
                 grid[coords_to_index(coords)] = new_id;
                 return cells.get(new_id);
@@ -305,6 +306,12 @@ namespace myseq {
             }
         }
 
+        void set_length(const V2i &v, int length) {
+            if (exists(v)) {
+                get_cell(v).length = length;
+            }
+        }
+
         void select_all() {
             for (auto &c: cells)
                 c.selected = true;
@@ -318,6 +325,13 @@ namespace myseq {
             }
         }
 
+        [[nodiscard]] int get_length(const V2i &v) const {
+            if (exists(v)) {
+                return get_cell(v).length;
+            } else {
+                return 0;
+            }
+        }
 
         void resize_width(int new_width) {
             auto new_grid = std::valarray<Id>(new_width * height);
