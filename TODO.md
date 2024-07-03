@@ -2,6 +2,7 @@
 - [ ] Simpler key range designation UX
 - [ ] Fix undo: pop does not set dirty=true
 - [ ] Fix undo: dragging & drawing should only push on mouse up
+- [ ] Fix tied: does not work on open HH before second snare
 - [x] Apply incoming velocity
 - [x] Make 32 steps always visible
 - [x] Add "Play current pattern", like in Renoise
@@ -13,5 +14,6 @@
 - [ ] Smarter velocity when adding new steps
 - [x] Just select starting octave for pattern and keep it to 16 semitones for now
 - [x] Mote traditional rectangle select instead of "drawing over"
+- [ ] Fix undo: check if state is equal when pushing to dedup and make impl easy
 - [ ] MIDI log
 - [ ] Recording
