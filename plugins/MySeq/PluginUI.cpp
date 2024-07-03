@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <unordered_set>
+#include <stack>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
 #include "Patterns.hpp"
@@ -10,7 +11,8 @@
 START_NAMESPACE_DISTRHO
 
 // #define SET_DIRTY() { d_debug("dirty: %d", __LINE__);  dirty = true; }
-#define SET_DIRTY() {   dirty = true; }
+#define SET_DIRTY() {   dirty = true; push_undo(); }
+#define SET_DIRTY_NO_UNDO() {   dirty = true; }
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -104,6 +106,7 @@ START_NAMESPACE_DISTRHO
         // std::optional<myseq::StatsReaderShm> stats_reader_shm;
         std::optional<myseq::Stats> stats;
         myseq::State state;
+        std::stack<myseq::State> undo_stack{};
 
 
         enum class Interaction {
@@ -128,6 +131,7 @@ START_NAMESPACE_DISTRHO
 //        void init_shm() {
 //            stats_reader_shm.emplace(instance_id.c_str());
 //        }
+
 
 
         /**
@@ -225,6 +229,17 @@ START_NAMESPACE_DISTRHO
            This is called by the host to inform the UI about parameter changes.
          */
         void parameterChanged(uint32_t, float) override {}
+
+        void push_undo() {
+            undo_stack.push(state);
+        }
+
+        void pop_undo() {
+            if (!undo_stack.empty()) {
+                state = undo_stack.top();
+                undo_stack.pop();
+            }
+        }
 
         [[nodiscard]] myseq::V2i
         calc_cell(const myseq::Pattern &p, const ImVec2 &cpos, const ImVec2 &mpos, const ImVec2 &grid_size,
@@ -395,7 +410,7 @@ START_NAMESPACE_DISTRHO
         }
 
         void
-        grid_paste(bool &dirty, myseq::Pattern &p) const {
+        grid_paste(bool &dirty, myseq::Pattern &p) {
             p.put_cells(clipboard, p.cursor);
             SET_DIRTY();
         }
@@ -424,7 +439,13 @@ START_NAMESPACE_DISTRHO
                 });
                 SET_DIRTY();
             }
-            return;
+        }
+
+        void
+        general_keyboard_interaction(bool &dirty) {
+            if (ImGui::IsKeyPressed(ImGuiKey_U)) {
+                pop_undo();
+            }
         }
 
         void
@@ -983,12 +1004,14 @@ START_NAMESPACE_DISTRHO
                 auto &cur = state.get_selected_pattern().cursor;
                 cur.x = 0;
                 cur.y = 127 - 24;
-                SET_DIRTY();
+                SET_DIRTY_NO_UNDO();
             }
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
-                ImGui::SetWindowFontScale(1.0);
 
+                general_keyboard_interaction(dirty);
+
+                ImGui::SetWindowFontScale(1.0);
 
                 show_grid(dirty);
 
