@@ -93,7 +93,6 @@ namespace myseq {
         pattern.each_cell([&](const Cell &cell) {
             rapidjson::Value o(rapidjson::kObjectType);
             auto ob = o.GetObject();
-            assert(cell.velocity > 0);
             ob.AddMember("x", cell.position.x, allocator)
                     .AddMember("y", cell.position.y, allocator)
                     .AddMember("v", (int) cell.velocity, allocator);

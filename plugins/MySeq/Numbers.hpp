@@ -2,7 +2,8 @@
 #ifndef AUDIO_SAMPLER_DPF_NUMBERS_HPP
 #define AUDIO_SAMPLER_DPF_NUMBERS_HPP
 
-static const char *ONE_TO_256[] = {
+static const char *ZERO_TO_256[] = {
+        "0",
         "1",
         "2",
         "3",

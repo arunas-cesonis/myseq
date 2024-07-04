@@ -140,9 +140,7 @@ struct GenArray {
     };
 
     void verify_id(const Id &id) const {
-        if (!exist(id)) {
-            throw std::runtime_error("verify_id: does not exist");
-        }
+        assert(exists(id));
     }
 
     void verify_index(const int index) const {
@@ -178,7 +176,7 @@ struct GenArray {
         return ret;
     }
 
-    [[nodiscard]] bool exist(const Id &id) const {
+    [[nodiscard]] bool exists(const Id &id) const {
         return id.index >= 0 && id.index < (int) data.size()
                && data[id.index].has_value()
                && data_gen[id.index] == id.gen;
@@ -190,7 +188,7 @@ struct GenArray {
     }
 
     void remove_if_exits(const Id &id) {
-        if (exist(id)) {
+        if (exists(id)) {
             remove(id);
         }
     }

@@ -207,16 +207,16 @@ namespace myseq {
             if (!is_valid_coords(coords)) {
                 return false;
             }
-            return cells.exist(grid[coords_to_index(coords)]);
+            return cells.exists(grid[coords_to_index(coords)]);
         }
 
         Cell &get_create_if_not_exists(const V2i &coords) {
             const auto idx = coords_to_index(coords);
             const auto &cell_id = grid[idx];
-            if (cells.exist(cell_id)) {
+            if (cells.exists(cell_id)) {
                 return cells.get(cell_id);
             } else {
-                const Cell cell = {coords, 0, false, 1};
+                const Cell cell = {coords, 127, false, 1};
                 const auto new_id = cells.push(cell);
                 grid[coords_to_index(coords)] = new_id;
                 return cells.get(new_id);
@@ -276,19 +276,18 @@ namespace myseq {
             if (caller_name != nullptr) {
                 // d_debug("set_velocity %d %d %d %s", v.x, v.y, velocity, caller_name);
             }
-            if (velocity == 0) {
-                if (exists(v))
-                    clear_cell(v);
-                return;
-            }
             get_create_if_not_exists(v).velocity = velocity;
         }
 
         [[nodiscard]] bool is_active(const V2i &v) const {
-            if (exists(v)) {
-                return get_cell(v).velocity > 0;
+            return exists(v);
+        }
+
+        void set_active(const V2i &v, bool active) {
+            if (active) {
+                get_create_if_not_exists(v);
             } else {
-                return false;
+                clear_cell(v);
             }
         }
 

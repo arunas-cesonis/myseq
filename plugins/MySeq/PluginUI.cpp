@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <unordered_set>
+#include <cassert>
 #include <stack>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
@@ -85,6 +86,7 @@ START_NAMESPACE_DISTRHO
     class MySeqUI : public UI {
     public:
         uint8_t drag_started_velocity = 0;
+        bool drag_started_active = false;
         std::vector<std::pair<V2i, uint8_t>> drag_started_velocity_vec;
         std::unordered_set<V2i, myseq::V2iHash> moving_cells_set;
         V2i drag_started_cell;
@@ -480,14 +482,12 @@ START_NAMESPACE_DISTRHO
                 case Interaction::DrawingCells: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (cursor_hovers_grid) {
-                            auto have = p.get_velocity(mcell);
-                            uint8_t want = drag_started_velocity == 0 ? 127 : 0;
+                            auto active = p.is_active(mcell);
+                            if (active == drag_started_active) {
+                                p.set_active(mcell, !active);
+                            }
                             if (p.cursor != mcell) {
                                 p.cursor = mcell;
-                                SET_DIRTY();
-                            }
-                            if (have != want) {
-                                p.set_velocity(mcell, want, "DrawingCells");
                                 SET_DIRTY();
                             }
                         }
@@ -672,9 +672,8 @@ START_NAMESPACE_DISTRHO
                                 interaction = Interaction::MovingCells;
                             } else {
                                 interaction = Interaction::DrawingCells;
-                                drag_started_velocity = p.get_velocity(mcell);
-                                p.set_velocity(mcell, drag_started_velocity == 0 ? 127 : 0,
-                                               "ImGuiMouseButton_Left init DrawinCells");
+                                drag_started_active = p.is_active(mcell);
+                                p.set_active(mcell, !drag_started_active);
                                 p.deselect_all();
                                 SET_DIRTY();
                             }
@@ -804,9 +803,9 @@ START_NAMESPACE_DISTRHO
                     auto has_cursor = p.cursor == loop_cell;
                     auto has_mouse = mcell == loop_cell;
                     auto velocity_fade = ((float) vel) / 127.0f;
-                    auto is_active = vel > 0;
+                    auto is_active = p.is_active(loop_cell);
                     ImColor cell_color1;
-                    if (vel > 0) {
+                    if (is_active) {
                         cell_color1 = scale_rgb(active_cell, 0.5 + velocity_fade * 0.5);
                         if (sel) {
                             //cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
@@ -865,8 +864,8 @@ START_NAMESPACE_DISTRHO
 
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
                         draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
-                    } else if (vel > 0 && sel) {
-                        draw_list->AddText(p_min, IM_COL32_WHITE, ONE_TO_256[vel - 1]);
+                    } else if (sel) {
+                        draw_list->AddText(p_min, IM_COL32_WHITE, ZERO_TO_256[vel]);
                     }
 
                     if (is_active && has_mouse && ImGui::BeginTooltip()) {

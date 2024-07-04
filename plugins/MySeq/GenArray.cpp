@@ -73,10 +73,10 @@ void gen_array_test_rand() {
     assert(actual_remaining == remaining_ids.size());
     assert(arr.size() == remaining_ids.size());
     for (auto id: removed_ids) {
-        assert(!arr.exist(id));
+        assert(!arr.exists(id));
     }
     for (auto id: remaining_ids) {
-        assert(arr.exist(id));
+        assert(arr.exists(id));
     }
     for (int i = 0; i < count; i++) {
         if (removed[i]) {
@@ -125,13 +125,13 @@ void gen_array_test_basic() {
     auto c = test.push(3);
     auto d = test.push(4);
 
-    assert(test.exist(b));
+    assert(test.exists(b));
     assert(1 == test.get(a));
     assert(2 == test.get(b));
     assert(3 == test.get(c));
     assert(4 == test.get(d));
     test.remove(b);
-    assert(!test.exist(b));
+    assert(!test.exists(b));
     auto it = test.begin();
     assert(1 == *it);
     it++;
