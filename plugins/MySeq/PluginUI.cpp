@@ -11,9 +11,9 @@
 START_NAMESPACE_DISTRHO
 
 // #define SET_DIRTY() { d_debug("dirty: %d", __LINE__);  dirty = true; }
-#define SET_DIRTY_PUSH_UNDO() {   dirty = true; push_undo(); }
+#define SET_DIRTY_PUSH_UNDO(descr) {   dirty = true; PUSH_UNDO(descr); }
 #define SET_DIRTY() {   dirty = true; }
-#define PUSH_UNDO() {   push_undo(); }
+#define PUSH_UNDO(descr) {   d_debug("push_undo: %s", descr); push_undo(); }
 
 // --------------------------------------------------------------------------------------------------------------------
 
@@ -67,6 +67,15 @@ START_NAMESPACE_DISTRHO
                                    color.Value.x + amount,
                                    color.Value.y + amount,
                                    color.Value.z + amount,
+                                   color.Value.w
+                           });
+    }
+
+    ImColor scale_rgb(ImColor color, float amount) {
+        return clamp_color({
+                                   color.Value.x * amount,
+                                   color.Value.y * amount,
+                                   color.Value.z * amount,
                                    color.Value.w
                            });
     }
@@ -366,7 +375,7 @@ START_NAMESPACE_DISTRHO
         void
         grid_paste(bool &dirty, myseq::Pattern &p) {
             p.put_cells(clipboard, p.cursor);
-            SET_DIRTY_PUSH_UNDO();
+            SET_DIRTY_PUSH_UNDO("paste");
         }
 
         void
@@ -385,39 +394,40 @@ START_NAMESPACE_DISTRHO
 
         void
         general_keyboard_interaction(bool &dirty) {
-            if (ImGui::IsKeyPressed(ImGuiKey_U)) {
+            if (key_pressed(ImGuiKey_U)) {
                 pop_undo();
+                SET_DIRTY();
             }
         }
 
         void
         grid_keyboard_interaction_no_mod(bool &dirty, myseq::Pattern &p) {
             auto shift_held = ImGui::GetIO().KeyShift;
-            if (ImGui::IsKeyPressed(ImGuiKey_Backspace) || ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+            if (key_pressed(ImGuiKey_Backspace) || key_pressed(ImGuiKey_Delete)) {
                 p.each_selected_cell([&](const myseq::Cell &c) {
                     p.clear_cell(c.position);
                 });
-                SET_DIRTY_PUSH_UNDO();
-            } else if (ImGui::IsKeyPressed(ImGuiKey_Y)) {
+                SET_DIRTY_PUSH_UNDO("delete");
+            } else if (key_pressed(ImGuiKey_Y)) {
                 grid_copy(p);
-            } else if (ImGui::IsKeyPressed(ImGuiKey_P)) {
+            } else if (key_pressed(ImGuiKey_P)) {
                 grid_paste(dirty, p);
-            } else if (ImGui::IsKeyPressed(ImGuiKey_K)) {
+            } else if (key_pressed(ImGuiKey_K)) {
                 if (p.cursor.y > 0) {
                     p.cursor.y -= 1;
                     SET_DIRTY();
                 }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_J)) {
+            } else if (key_pressed(ImGuiKey_J)) {
                 if (p.cursor.y + 1 < p.height) {
                     p.cursor.y += 1;
                     SET_DIRTY();
                 }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_H)) {
+            } else if (key_pressed(ImGuiKey_H)) {
                 if (p.cursor.x > 0) {
                     p.cursor.x -= 1;
                     SET_DIRTY();
                 }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_L)) {
+            } else if (key_pressed(ImGuiKey_L)) {
                 if (p.cursor.x + 1 < p.width) {
                     p.cursor.x += 1;
                     SET_DIRTY();
@@ -435,7 +445,7 @@ START_NAMESPACE_DISTRHO
                 const V2i d(dx, dy);
                 if (d != V2i(0, 0)) {
                     p.move_selected_cells(d);
-                    SET_DIRTY_PUSH_UNDO();
+                    SET_DIRTY_PUSH_UNDO("keyboard move");
                 }
             }
         }
@@ -483,7 +493,7 @@ START_NAMESPACE_DISTRHO
                         }
                     } else {
                         interaction = Interaction::None;
-                        PUSH_UNDO();
+                        PUSH_UNDO("DrawingCells");
                     }
                     break;
                 }
@@ -499,7 +509,7 @@ START_NAMESPACE_DISTRHO
                         p.set_velocity(c, 127);
                         p.set_length(c, n);
                         interaction = Interaction::None;
-                        SET_DIRTY_PUSH_UNDO();
+                        SET_DIRTY_PUSH_UNDO("DrawingLongCell");
                     }
                     break;
                 }
@@ -517,7 +527,7 @@ START_NAMESPACE_DISTRHO
                         }
                     } else {
                         interaction = Interaction::None;
-                        PUSH_UNDO();
+                        PUSH_UNDO("AdjustingVelocitySelected");
                     }
                     break;
                 }
@@ -533,7 +543,7 @@ START_NAMESPACE_DISTRHO
                         }
                     } else {
                         interaction = Interaction::None;
-                        PUSH_UNDO();
+                        PUSH_UNDO("AdjustingVelocity");
                     }
                     break;
                 }
@@ -574,7 +584,7 @@ START_NAMESPACE_DISTRHO
                     } else {
                         if (previous_move_offset != V2i(0, 0)) {
                             p.move_selected_cells(previous_move_offset);
-                            SET_DIRTY_PUSH_UNDO();
+                            SET_DIRTY_PUSH_UNDO("MovingCells");
                         }
                         interaction = Interaction::None;
                     }
@@ -733,7 +743,7 @@ START_NAMESPACE_DISTRHO
             float cell_padding = 4.0;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             float grid_width = ImGui::CalcItemWidth();
-            const auto active_cell = ImColor(0x5a, 0x8a, 0xcf);
+            const auto active_cell = ImColor(0x7a, 0xaa, 0xef);
             const auto inactive_cell = ImColor(0x25, 0x25, 0x25);
             const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto grid_cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
@@ -797,7 +807,7 @@ START_NAMESPACE_DISTRHO
                     auto is_active = vel > 0;
                     ImColor cell_color1;
                     if (vel > 0) {
-                        cell_color1 = ImColor(ImLerp(ImColor(IM_COL32_BLACK).Value, active_cell.Value, velocity_fade));
+                        cell_color1 = scale_rgb(active_cell, 0.5 + velocity_fade * 0.5);
                         if (sel) {
                             //cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
                             auto tmp = cell_color1.Value.y;
@@ -849,7 +859,9 @@ START_NAMESPACE_DISTRHO
                     } else {
                         border_color = default_border_color;
                     };
-                    //draw_list->AddRect(p_min, p_max, border_color);
+                    if (is_active) {
+                        draw_list->AddRect(p_min, p_max, border_color);
+                    }
 
                     if ((alt_held || note % 12 == 0) && loop_cell.x == 0) {
                         draw_list->AddText(p_min, IM_COL32_WHITE, ALL_NOTES[note]);
@@ -946,7 +958,7 @@ START_NAMESPACE_DISTRHO
                 auto &cur = state.get_selected_pattern().cursor;
                 cur.x = 0;
                 cur.y = 127 - 24;
-                SET_DIRTY_PUSH_UNDO();
+                SET_DIRTY_PUSH_UNDO("initial");
             }
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
@@ -988,7 +1000,7 @@ START_NAMESPACE_DISTRHO
                         const auto id = pp.id;
                         if (ImGui::Selectable(std::to_string(id).c_str(), state.selected == id, flags)) {
                             state.selected = id;
-                            SET_DIRTY_PUSH_UNDO();
+                            SET_DIRTY_PUSH_UNDO("select pattern")
                         }
 
                         // length
@@ -1003,7 +1015,7 @@ START_NAMESPACE_DISTRHO
                         const auto first_note = note_select(tmp.first_note);
                         if (tmp.first_note != first_note) {
                             tmp.first_note = first_note;
-                            SET_DIRTY_PUSH_UNDO();
+                            SET_DIRTY_PUSH_UNDO("first_note")
                         }
                         ImGui::PopID();
 
@@ -1013,7 +1025,7 @@ START_NAMESPACE_DISTRHO
                         const auto last_note = note_select(tmp.last_note);
                         if (tmp.last_note != last_note) {
                             tmp.last_note = last_note;
-                            SET_DIRTY_PUSH_UNDO();
+                            SET_DIRTY_PUSH_UNDO("last_note")
                         }
                         ImGui::PopID();
                         ImGui::PopID();
@@ -1038,7 +1050,7 @@ START_NAMESPACE_DISTRHO
 
 
                 if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
-                    SET_DIRTY_PUSH_UNDO();
+                    SET_DIRTY_PUSH_UNDO("play_selected");
                 }
                 if (ImGui::GetIO().KeyAlt) ImGui::Text("Alt");
                 if (ImGui::GetIO().KeyCtrl) ImGui::Text("Ctrl");
@@ -1052,7 +1064,7 @@ START_NAMESPACE_DISTRHO
                     if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
                                          ImGuiSliderFlags_None)) {
                         p.resize_width(pattern_width_slider_value);
-                        SET_DIRTY_PUSH_UNDO();
+                        SET_DIRTY_PUSH_UNDO("resize_width");
                     }
                 }
 
@@ -1094,7 +1106,6 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("instance_id=%s", instance_id.c_str());
                 ImGui::Text("publish_count=%d", publish_count);
                 ImGui::Text("publish_last_bytes=%d", publish_last_bytes);
-                ImGui::Text("input_mode=%s", input_mode_to_string(input_mode));
                 ImGui::Text("selected_cells count=%d", selected_cells_count);
                 ImGui::Text("clipboard.size=%lu", clipboard.size());
                 ImGui::Text("offset=%f %f", offset.x, offset.y);
@@ -1127,15 +1138,15 @@ START_NAMESPACE_DISTRHO
             ImGui::End();
             if (create) {
                 state.selected = state.create_pattern().id;
-                SET_DIRTY_PUSH_UNDO();
+                SET_DIRTY_PUSH_UNDO("create");
             }
             if (delete_) {
                 state.delete_pattern(state.selected);
-                SET_DIRTY_PUSH_UNDO();
+                SET_DIRTY_PUSH_UNDO("delete");
             }
             if (duplicate) {
                 state.selected = state.duplicate_pattern(state.selected).id;
-                SET_DIRTY_PUSH_UNDO();
+                SET_DIRTY_PUSH_UNDO("duplicate");
             }
             if (dirty) {
                 publish();
