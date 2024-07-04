@@ -317,6 +317,14 @@ namespace myseq {
                 c.selected = true;
         }
 
+        [[nodiscard]] int num_selected() const {
+            int count = 0;
+            for (const auto &c: cells) {
+                if (c.selected) count++;
+            }
+            return count;
+        }
+
         [[nodiscard]] bool get_selected(const V2i &v) const {
             if (exists(v)) {
                 return get_cell(v).selected;

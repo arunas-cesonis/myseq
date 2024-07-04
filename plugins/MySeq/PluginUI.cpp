@@ -115,11 +115,11 @@ START_NAMESPACE_DISTRHO
             DrawingCells,
             DrawingLongCell,
             AdjustingVelocity,
+            AdjustingVelocitySelected,
             KeysSelect,
             DragSelectingCells,
             RectSelectingCells,
             MovingCells,
-            Panning
         };
         Interaction interaction = Interaction::None;
 
@@ -209,6 +209,8 @@ START_NAMESPACE_DISTRHO
                     return "DrawingLongCell";
                 case Interaction::AdjustingVelocity:
                     return "AdjustingVelocity";
+                case Interaction::AdjustingVelocitySelected:
+                    return "AdjustingVelocitySelected";
                 case Interaction::KeysSelect:
                     return "KeysSelect";
                 case Interaction::DragSelectingCells:
@@ -217,8 +219,6 @@ START_NAMESPACE_DISTRHO
                     return "RectSelectingCells";
                 case Interaction::MovingCells:
                     return "MovingCells";
-                case Interaction::Panning:
-                    return "Panning";
             }
             return "Unknown";
         }
@@ -236,9 +236,9 @@ START_NAMESPACE_DISTRHO
         }
 
         void pop_undo() {
-            if (!undo_stack.empty()) {
-                state = undo_stack.top();
+            if (undo_stack.size() > 1) {
                 undo_stack.pop();
+                state = undo_stack.top();
             }
         }
 
@@ -418,19 +418,20 @@ START_NAMESPACE_DISTRHO
 
         void
         grid_keyboard_interaction_ctrl(bool &dirty, myseq::Pattern &p) {
-            if (ImGui::IsKeyPressed(ImGuiKey_U)) {
-                auto amount = std::min(p.cursor.y, 12);
-                if (amount > 0) {
-                    p.cursor.y -= amount;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_D)) {
-                auto amount = std::min(p.height - p.cursor.y - 1, 12);
-                if (amount > 0) {
-                    p.cursor.y += amount;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_C)) {
+            // if (ImGui::IsKeyPressed(ImGuiKey_U)) {
+            //     auto amount = std::min(p.cursor.y, 12);
+            //     if (amount > 0) {
+            //         p.cursor.y -= amount;
+            //         SET_DIRTY_PUSH_UNDO();
+            //     }
+            // } else if (ImGui::IsKeyPressed(ImGuiKey_D)) {
+            //     auto amount = std::min(p.height - p.cursor.y - 1, 12);
+            //     if (amount > 0) {
+            //         p.cursor.y += amount;
+            //         SET_DIRTY_PUSH_UNDO();
+            //     }
+            // } else
+            if (ImGui::IsKeyPressed(ImGuiKey_C)) {
                 grid_copy(p);
             } else if (ImGui::IsKeyPressed(ImGuiKey_V)) {
                 grid_paste(dirty, p);
@@ -452,64 +453,68 @@ START_NAMESPACE_DISTRHO
         void
         grid_keyboard_interaction_no_mod(bool &dirty, myseq::Pattern &p) {
             auto shift_held = ImGui::GetIO().KeyShift;
-            if (ImGui::IsKeyPressed(ImGuiKey_K)) {
-                if (p.cursor.y > 0) {
-                    p.cursor.y -= 1;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_J)) {
-                if (p.cursor.y + 1 < p.height) {
-                    p.cursor.y += 1;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_H)) {
-                if (p.cursor.x > 0) {
-                    p.cursor.x -= 1;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_L)) {
-                if (p.cursor.x + 1 < p.width) {
-                    p.cursor.x += 1;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_0)) {
-                if (p.cursor.x != 0) {
-                    p.cursor.x = 0;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_4)) {
-                if (p.cursor.x != p.width - 1) {
-                    p.cursor.x = p.width - 1;
-                    SET_DIRTY_PUSH_UNDO();
-                }
-            } else if (ImGui::IsKeyPressed(ImGuiKey_1)) {
-                input_mode = InputMode::Drawing;
-            } else if (ImGui::IsKeyPressed(ImGuiKey_2)) {
-                input_mode = InputMode::Selecting;
-            } else if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
-                auto v = p.get_velocity(p.cursor);
-                uint8_t new_v = v == 0 ? 127 : 0;
-                p.set_velocity(p.cursor, new_v, "Space");
-                p.cursor.x = p.cursor.x + 1 < p.width ? p.cursor.x + 1 : 0;
+            if (ImGui::IsKeyPressed(ImGuiKey_Backspace) || ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+                p.each_selected_cell([&](const myseq::Cell &c) {
+                    p.clear_cell(c.position);
+                });
                 SET_DIRTY_PUSH_UNDO();
+            } else if (ImGui::IsKeyPressed(ImGuiKey_Y)) {
+                grid_copy(p);
+            } else if (ImGui::IsKeyPressed(ImGuiKey_P)) {
+                grid_paste(dirty, p);
+//             if (ImGui::IsKeyPressed(ImGuiKey_K)) {
+//                 if (p.cursor.y > 0) {
+//                     p.cursor.y -= 1;
+//                     SET_DIRTY_PUSH_UNDO();
+//                 }
+//             } else if (ImGui::IsKeyPressed(ImGuiKey_J)) {
+//                 if (p.cursor.y + 1 < p.height) {
+//                     p.cursor.y += 1;
+//                     SET_DIRTY_PUSH_UNDO();
+//                 }
+//             } else if (ImGui::IsKeyPressed(ImGuiKey_H)) {
+//                 if (p.cursor.x > 0) {
+//                     p.cursor.x -= 1;
+//                     SET_DIRTY_PUSH_UNDO();
+//                 }
+//             } else if (ImGui::IsKeyPressed(ImGuiKey_L)) {
+//                 if (p.cursor.x + 1 < p.width) {
+//                     p.cursor.x += 1;
+//                     SET_DIRTY_PUSH_UNDO();
+//                 }
+//            }
+//            else if (ImGui::IsKeyPressed(ImGuiKey_0)) {
+//                if (p.cursor.x != 0) {
+//                    p.cursor.x = 0;
+//                    SET_DIRTY_PUSH_UNDO();
+//                }
+//            } else if (ImGui::IsKeyPressed(ImGuiKey_4)) {
+//                if (p.cursor.x != p.width - 1) {
+//                    p.cursor.x = p.width - 1;
+//                    SET_DIRTY_PUSH_UNDO();
+//                }
+//            } else if (ImGui::IsKeyPressed(ImGuiKey_1)) {
+//                input_mode = InputMode::Drawing;
+//            } else if (ImGui::IsKeyPressed(ImGuiKey_2)) {
+//                input_mode = InputMode::Selecting;
+//            } else if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
+//                auto v = p.get_velocity(p.cursor);
+//                uint8_t new_v = v == 0 ? 127 : 0;
+//                p.set_velocity(p.cursor, new_v, "Space");
+//                p.cursor.x = p.cursor.x + 1 < p.width ? p.cursor.x + 1 : 0;
+//                SET_DIRTY_PUSH_UNDO();
+//
             } else {
                 const int updown = shift_held ? 12 : 1;
 
                 // For some reason CTRL+A makes A stuck
                 const bool no_repeat = false;
                 const int dy =
-//                        (key_pressed(ImGuiKey_W) ? -updown : 0)
-                        //                       + (key_pressed(ImGuiKey_S) ? updown : 0)
                         +(key_pressed(ImGuiKey_UpArrow) ? -updown : 0)
                         + (key_pressed(ImGuiKey_DownArrow) ? updown : 0);
                 const int dx =
-                        //                      (key_pressed(ImGuiKey_A) ? -1 : 0)
-                        //                     + (key_pressed(ImGuiKey_D) ? 1 : 0)
                         +(key_pressed(ImGuiKey_LeftArrow) ? -1 : 0)
                         + (key_pressed(ImGuiKey_RightArrow) ? 1 : 0);
-                //+ (ImGui::IsKeyPressed(ImGuiKey_D) ? 1 : 0)
-                //+ (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) ? -1 : 0)
-                //+ (ImGui::IsKeyPressed(ImGuiKey_RightArrow) ? 1 : 0);
                 const V2i d(dx, dy);
                 if (d != V2i(0, 0)) {
                     p.move_selected_cells(d);
@@ -543,6 +548,7 @@ START_NAMESPACE_DISTRHO
             auto shift_held = ImGui::GetIO().KeyShift;
             auto mpos = ImGui::GetMousePos();
             auto cursor_hovers_grid = mcell.x >= 0 && mcell.y >= 0;
+            auto cursor_hovers_active_cell = cursor_hovers_grid && (p.get_velocity(mcell) > 0);
             switch (interaction) {
                 case Interaction::DrawingCells: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
@@ -566,25 +572,7 @@ START_NAMESPACE_DISTRHO
                 }
 
                 case Interaction::DrawingLongCell: {
-                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
-                            if (cursor_hovers_grid) {
-                                //const auto x1 = std::min(mcell.x, drag_started_cell.x);
-                                //const auto y1 = drag_started_cell.y;
-                                //const auto n = mcell.x - drag_started_cell.x + 1;
-                                //const auto xy = V2i(x1, y1);
-                                //p.set_velocity(xy, 127);
-                                // p.set_selected(cell, !drag_started_selected);
-                                //for (int x = mcell.x; x < drag_started_cell.x; x++) {
-                                //    p.set_velocity(V2i(x, drag_started_cell.y), 127, "DrawingLongCell");
-                                //}
-                                //for (int x = mcell.x + 1; x < drag_started_cell.x; x++) {
-                                //    p.set_velocity(V2i(x, drag_started_cell.y), 127, "DrawingLongCell");
-                                //}
-//                                SET_DIRTY();
-                            }
-                        }
-                    } else {
+                    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         const auto x1 = std::min(mcell.x, drag_started_cell.x);
                         const auto x2 = std::max(mcell.x, drag_started_cell.x);
                         const auto y = drag_started_cell.y;
@@ -599,6 +587,24 @@ START_NAMESPACE_DISTRHO
                     break;
                 }
 
+                case Interaction::AdjustingVelocitySelected: {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
+                        if (cursor_hovers_grid) {
+                            auto delta_y = mpos.y - drag_started_mpos.y;
+                            for (auto &pair: drag_started_velocity_vec) {
+                                auto new_vel2 = (uint8_t) clamp(
+                                        (int) std::round((float) pair.second - (float) delta_y), 0, 127);
+                                p.set_velocity(pair.first, new_vel2, "AdjustingVelocity B");
+                            }
+                            SET_DIRTY();
+                        }
+                    } else {
+                        interaction = Interaction::None;
+                        PUSH_UNDO();
+                    }
+                    break;
+                }
+
                 case Interaction::AdjustingVelocity: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
                         if (cursor_hovers_grid) {
@@ -606,14 +612,6 @@ START_NAMESPACE_DISTRHO
                             auto new_vel = (uint8_t) clamp(
                                     (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
                             p.set_velocity(drag_started_cell, new_vel, "AdjustingVelocity A");
-                            for (auto &pair: drag_started_velocity_vec) {
-                                auto new_vel2 = (uint8_t) clamp(
-                                        (int) std::round((float) pair.second - (float) delta_y), 0, 127);
-                                if (!p.get_selected(pair.first)) {
-                                    p.set_selected(pair.first, true);
-                                }
-                                p.set_velocity(pair.first, new_vel2, "AdjustingVelocity B");
-                            }
                             SET_DIRTY();
                         }
                     } else {
@@ -670,8 +668,7 @@ START_NAMESPACE_DISTRHO
                     }
                     break;
                 case Interaction::RectSelectingCells:
-                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-                        (shift_held || input_mode == InputMode::Selecting)) {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
                         //
                     } else {
                         const auto sr = selection_rectangle(p, mpos, grid_cpos, grid_size, cell_size);
@@ -683,12 +680,12 @@ START_NAMESPACE_DISTRHO
                             }
 
                         interaction = Interaction::None;
-                        SET_DIRTY_PUSH_UNDO();
+                        SET_DIRTY();
                     }
                     break;
                 case Interaction::DragSelectingCells:
-                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && shift_held) {
-                        if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+                        if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
                             if (cursor_hovers_grid) {
                                 p.set_selected(mcell, !drag_started_selected);
                                 SET_DIRTY();
@@ -696,11 +693,24 @@ START_NAMESPACE_DISTRHO
                         }
                     } else {
                         interaction = Interaction::None;
-                        SET_DIRTY_PUSH_UNDO();
+                        SET_DIRTY();
                     }
 
                 case Interaction::None:
-                    if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::IsKeyDown(ImGuiKey_Space)) {
+                    if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) {
+                        if (cursor_hovers_grid) {
+                            if (cursor_hovers_active_cell) {
+                                drag_started_selected = p.get_selected(mcell);
+                                p.set_selected(mcell, !drag_started_selected);
+                                interaction = Interaction::DragSelectingCells;
+                            } else {
+                                drag_started_mpos = mpos;
+                                interaction = Interaction::RectSelectingCells;
+                                p.cursor.x = mcell.x;
+                                p.cursor.y = mcell.y;
+                            }
+                            SET_DIRTY();
+                        }
                     } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                         if (cursor_hovers_grid) {
                             if (ImGui::IsKeyDown(ImGuiKey_T)) {
@@ -710,13 +720,18 @@ START_NAMESPACE_DISTRHO
                                 drag_started_mpos = mpos;
                                 drag_started_cell = mcell;
                             } else if (cmd_held()) {
-                                interaction = Interaction::AdjustingVelocity;
-                                drag_started_velocity = p.get_velocity(mcell);
-                                drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
-                                drag_started_velocity_vec.clear();
-                                p.each_selected_cell([&](const myseq::Cell &c) {
-                                    drag_started_velocity_vec.push_back({c.position, c.velocity});
-                                });
+                                if (p.num_selected() > 0) {
+                                    drag_started_velocity_vec.clear();
+                                    p.each_selected_cell([&](const myseq::Cell &c) {
+                                        drag_started_velocity_vec.push_back({c.position, c.velocity});
+                                    });
+                                    interaction = Interaction::AdjustingVelocitySelected;
+                                } else {
+
+                                    drag_started_velocity = p.get_velocity(mcell);
+                                    drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
+                                    interaction = Interaction::AdjustingVelocity;
+                                }
                                 drag_started_mpos = mpos;
                                 drag_started_cell = mcell;
                             } else if (p.get_selected(mcell)) {
@@ -728,34 +743,14 @@ START_NAMESPACE_DISTRHO
                                     moving_cells_set.insert(c.position);
                                 });
                                 interaction = Interaction::MovingCells;
-                            } else if (input_mode == InputMode::Selecting || shift_held) {
-                                p.cursor = mcell;
-                                if (p.is_active(mcell)) {
-                                    drag_started_selected = p.get_selected(mcell);
-                                    p.set_selected(mcell, !drag_started_selected);
-                                    interaction = Interaction::DragSelectingCells;
-                                } else {
-                                    drag_started_mpos = mpos;
-                                    interaction = Interaction::RectSelectingCells;
-                                }
-                                SET_DIRTY();
                             } else {
                                 interaction = Interaction::DrawingCells;
                                 drag_started_velocity = p.get_velocity(mcell);
                                 p.set_velocity(mcell, drag_started_velocity == 0 ? 127 : 0,
                                                "ImGuiMouseButton_Left init DrawinCells");
                                 p.deselect_all();
-                                SET_DIRTY_PUSH_UNDO();
+                                SET_DIRTY();
                             }
-                        } else {
-                            // else { SET_DIRTY();}  // <-- why was this here?
-                        }
-                    } else {
-                        if (ImGui::IsKeyPressed(ImGuiKey_Backspace) || ImGui::IsKeyPressed(ImGuiKey_Delete)) {
-                            p.each_selected_cell([&](const myseq::Cell &c) {
-                                p.clear_cell(c.position);
-                            });
-                            SET_DIRTY_PUSH_UNDO();
                         }
                     }
             }
@@ -780,7 +775,11 @@ START_NAMESPACE_DISTRHO
         }
 
         void grid_viewport_mouse_pan() {
-            if (ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
+            if (
+                    (ImGui::GetIO().KeyAlt && ImGui::IsMouseDragging(ImGuiMouseButton_Right))
+                    || (ImGui::IsMouseDragging(ImGuiMouseButton_Middle))
+
+                    ) {
                 offset += ImGui::GetIO().MouseDelta;
             }
         }
@@ -1030,7 +1029,7 @@ START_NAMESPACE_DISTRHO
                 auto &cur = state.get_selected_pattern().cursor;
                 cur.x = 0;
                 cur.y = 127 - 24;
-                SET_DIRTY();
+                SET_DIRTY_PUSH_UNDO();
             }
 
             if (ImGui::Begin("MySeq", nullptr, window_flags)) {
@@ -1124,6 +1123,9 @@ START_NAMESPACE_DISTRHO
                 if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
                     SET_DIRTY_PUSH_UNDO();
                 }
+                if (ImGui::GetIO().KeyAlt) ImGui::Text("Alt");
+                if (ImGui::GetIO().KeyCtrl) ImGui::Text("Ctrl");
+                if (cmd_held()) ImGui::Text("Cmd");
 
                 ImGui::EndGroup();
 
@@ -1152,7 +1154,12 @@ START_NAMESPACE_DISTRHO
                 const TimePosition &t = ((MySeqPlugin *) getPluginInstancePointer())->last_time_position;
                 const double sr = ((MySeqPlugin *) getPluginInstancePointer())->getSampleRate();
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
-                ImGui::Text("FPS=%f", ImGui::GetCurrentContext()->IO.Framerate);
+                auto fps = ImGui::GetCurrentContext()->IO.Framerate;
+                if (fps > 999.9) {
+                    ImGui::Text("FPS=+999.9");
+                } else {
+                    ImGui::Text("FPS=%.1f", ImGui::GetCurrentContext()->IO.Framerate);
+                }
 
 
                 ImGui::Text("tick=%f", tc.global_tick());
@@ -1163,7 +1170,7 @@ START_NAMESPACE_DISTRHO
                             selected_cells_count += 1;
                         });
 
-                ImGui::Text("undo length: %lut", undo_stack.size());
+                ImGui::Text("undo length: %lu", undo_stack.size());
                 ImGui::Text("key a down=%d", ImGui::IsKeyDown(ImGuiKey_A));
                 ImGui::Text("key c down=%d", ImGui::IsKeyDown(ImGuiKey_C));
                 ImGui::Text("key v down=%d", ImGui::IsKeyDown(ImGuiKey_V));
@@ -1193,33 +1200,6 @@ START_NAMESPACE_DISTRHO
                     ImGui::EndGroup();
                 }
 
-                /*
-                ImGui::Text("t.frame=%llu", t.frame);
-                ImGui::Text("t.playing=%d", t.playing);
-                ImGui::Text("t.bbt.valid=%d", t.bbt.valid);
-                ImGui::Text("t.bbt.bar=%d", t.bbt.bar);
-                ImGui::Text("t.bbt.beat=%d", t.bbt.beat);
-                ImGui::Text("t.bbt.tick=%f", t.bbt.tick);
-                ImGui::Text("t.bbt.tick+t.barStartTick=%f", t.bbt.tick + t.bbt.barStartTick);
-                ImGui::Text("tc.global_tick()=%f", tc.global_tick());
-                ImGui::Text("t.bbt.barStartTick=%f", t.bbt.barStartTick);
-                ImGui::Text("t.bbt.beatsPerBar=%f", t.bbt.beatsPerBar);
-                ImGui::Text("t.bbt.beatType=%f", t.bbt.beatType);
-                ImGui::Text("t.bbt.ticksPerBeat=%f", t.bbt.ticksPerBeat);
-                ImGui::Text("t.bbt.beatsPerMinute=%f", t.bbt.beatsPerMinute);
-                ImGui::Text("publish count %d", publish_count);
-                ImGui::Text("cell %d %d", cell.x, cell.y);
-                ImGui::Text("cpos %f %f", cpos.x, cpos.y);
-                ImGui::Text("first_note %d %d", p.first_note, p.last_note);
-                ImGui::Text("drag_started_velocity=%d", drag_started_velocity);
-                ImGui::Text("first_visible_col=%d", first_visible_col);
-                ImGui::Text("last_visible_col=%d", last_visible_col);
-                ImGui::Text("first_visible_row=%d", first_visible_row);
-                ImGui::Text("last_visible_row=%d", last_visible_row);
-                ImGui::Text("corner=%f %f", corner.x, corner.y);
-                ImGui::Text("valid_cell=%d", valid_cell);
-                ImGui::Text("interaction=%s", interaction_to_string(interaction));
-                */
             }
 
 
