@@ -71,16 +71,6 @@ START_NAMESPACE_DISTRHO
                            });
     }
 
-    // ImColor invert_color(ImColor color) {
-    //     return {
-    //             1.0f - color.Value.x,
-    //             1.0f - color.Value.y,
-    //             1.0f - color.Value.z,
-    //             color.Value.w
-    //     };
-    // }
-
-
     namespace ipc = boost::interprocess;
 
     class MySeqUI : public UI {
@@ -104,7 +94,6 @@ START_NAMESPACE_DISTRHO
 
         bool show_metrics = false;
 
-        // std::optional<myseq::StatsReaderShm> stats_reader_shm;
         std::optional<myseq::Stats> stats;
         myseq::State state;
         std::stack<myseq::State> undo_stack{};
@@ -123,22 +112,6 @@ START_NAMESPACE_DISTRHO
         };
         Interaction interaction = Interaction::None;
 
-        enum class InputMode {
-            Drawing,
-            Selecting
-        };
-        InputMode input_mode = InputMode::Drawing;
-
-//        void init_shm() {
-//            stats_reader_shm.emplace(instance_id.c_str());
-//        }
-
-
-
-        /**
-           UI class constructor.
-           The UI should be initialized to a default state that matches the plugin side.
-         */
         MySeqUI()
                 : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
             const double scaleFactor = getScaleFactor();
@@ -164,17 +137,6 @@ START_NAMESPACE_DISTRHO
         int publish_count = 0;
         int publish_last_bytes = 0;
 
-//        void read_stats() {
-//            if (stats_reader_shm.has_value()) {
-//                myseq::Stats *s = stats_reader_shm->read();
-//
-//                if (nullptr != s) {
-//                    stats.emplace(*s);
-//                }
-//            }
-//        }
-
-
         void publish() {
             auto s = state.to_json_string();
             publish_last_bytes = (int) s.length();
@@ -189,15 +151,6 @@ START_NAMESPACE_DISTRHO
         }
 
     protected:
-        static const char *input_mode_to_string(InputMode i) {
-            switch (i) {
-                case InputMode::Drawing:
-                    return "Drawing";
-                case InputMode::Selecting:
-                    return "Selecting";
-            }
-            return "Unknown";
-        }
 
         static const char *interaction_to_string(Interaction i) {
             switch (i) {
@@ -418,28 +371,15 @@ START_NAMESPACE_DISTRHO
 
         void
         grid_keyboard_interaction_ctrl(bool &dirty, myseq::Pattern &p) {
-            // if (ImGui::IsKeyPressed(ImGuiKey_U)) {
-            //     auto amount = std::min(p.cursor.y, 12);
-            //     if (amount > 0) {
-            //         p.cursor.y -= amount;
-            //         SET_DIRTY_PUSH_UNDO();
-            //     }
-            // } else if (ImGui::IsKeyPressed(ImGuiKey_D)) {
-            //     auto amount = std::min(p.height - p.cursor.y - 1, 12);
-            //     if (amount > 0) {
-            //         p.cursor.y += amount;
-            //         SET_DIRTY_PUSH_UNDO();
-            //     }
-            // } else
-            if (ImGui::IsKeyPressed(ImGuiKey_C)) {
+            if (key_pressed(ImGuiKey_C)) {
                 grid_copy(p);
-            } else if (ImGui::IsKeyPressed(ImGuiKey_V)) {
+            } else if (key_pressed(ImGuiKey_V)) {
                 grid_paste(dirty, p);
-            } else if (ImGui::IsKeyPressed(ImGuiKey_A)) {
+            } else if (key_pressed(ImGuiKey_A)) {
                 p.each_cell([&](const myseq::Cell &c) {
                     p.set_selected(c.position, true);
                 });
-                SET_DIRTY_PUSH_UNDO();
+                SET_DIRTY();
             }
         }
 
@@ -462,51 +402,28 @@ START_NAMESPACE_DISTRHO
                 grid_copy(p);
             } else if (ImGui::IsKeyPressed(ImGuiKey_P)) {
                 grid_paste(dirty, p);
-//             if (ImGui::IsKeyPressed(ImGuiKey_K)) {
-//                 if (p.cursor.y > 0) {
-//                     p.cursor.y -= 1;
-//                     SET_DIRTY_PUSH_UNDO();
-//                 }
-//             } else if (ImGui::IsKeyPressed(ImGuiKey_J)) {
-//                 if (p.cursor.y + 1 < p.height) {
-//                     p.cursor.y += 1;
-//                     SET_DIRTY_PUSH_UNDO();
-//                 }
-//             } else if (ImGui::IsKeyPressed(ImGuiKey_H)) {
-//                 if (p.cursor.x > 0) {
-//                     p.cursor.x -= 1;
-//                     SET_DIRTY_PUSH_UNDO();
-//                 }
-//             } else if (ImGui::IsKeyPressed(ImGuiKey_L)) {
-//                 if (p.cursor.x + 1 < p.width) {
-//                     p.cursor.x += 1;
-//                     SET_DIRTY_PUSH_UNDO();
-//                 }
-//            }
-//            else if (ImGui::IsKeyPressed(ImGuiKey_0)) {
-//                if (p.cursor.x != 0) {
-//                    p.cursor.x = 0;
-//                    SET_DIRTY_PUSH_UNDO();
-//                }
-//            } else if (ImGui::IsKeyPressed(ImGuiKey_4)) {
-//                if (p.cursor.x != p.width - 1) {
-//                    p.cursor.x = p.width - 1;
-//                    SET_DIRTY_PUSH_UNDO();
-//                }
-//            } else if (ImGui::IsKeyPressed(ImGuiKey_1)) {
-//                input_mode = InputMode::Drawing;
-//            } else if (ImGui::IsKeyPressed(ImGuiKey_2)) {
-//                input_mode = InputMode::Selecting;
-//            } else if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
-//                auto v = p.get_velocity(p.cursor);
-//                uint8_t new_v = v == 0 ? 127 : 0;
-//                p.set_velocity(p.cursor, new_v, "Space");
-//                p.cursor.x = p.cursor.x + 1 < p.width ? p.cursor.x + 1 : 0;
-//                SET_DIRTY_PUSH_UNDO();
-//
+            } else if (ImGui::IsKeyPressed(ImGuiKey_K)) {
+                if (p.cursor.y > 0) {
+                    p.cursor.y -= 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_J)) {
+                if (p.cursor.y + 1 < p.height) {
+                    p.cursor.y += 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_H)) {
+                if (p.cursor.x > 0) {
+                    p.cursor.x -= 1;
+                    SET_DIRTY();
+                }
+            } else if (ImGui::IsKeyPressed(ImGuiKey_L)) {
+                if (p.cursor.x + 1 < p.width) {
+                    p.cursor.x += 1;
+                    SET_DIRTY();
+                }
             } else {
                 const int updown = shift_held ? 12 : 1;
-
                 // For some reason CTRL+A makes A stuck
                 const bool no_repeat = false;
                 const int dy =
@@ -1235,13 +1152,6 @@ START_NAMESPACE_DISTRHO
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "instance_id") == 0) {
                 d_debug("PluginUI: stateChanged instance_id=%s new=%s", instance_id.c_str(), value);
-                //if (std::strcmp(instance_id.c_str(), value) != 0) {
-                //    d_debug("PluginUI: reinitialzing shm");
-                //    instance_id = std::string(value);
-                //    init_shm();
-                //} else {
-                //    d_debug("PluginUI: will do nothing for same value");
-                //}
             }
         }
         // ----------------------------------------------------------------------------------------------------------------
