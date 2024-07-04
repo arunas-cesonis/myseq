@@ -874,7 +874,7 @@ START_NAMESPACE_DISTRHO
                         // bool selected;
                         // int length;
                         std::ostringstream oss;
-                        const auto &c = p.get_cell(loop_cell);
+                        const auto &c = p.get_cell_const_ref(loop_cell);
                         oss << "position: " << c.position.x << ":" << c.position.y << "\n";
                         oss << "velocity: " << (int) c.velocity << "\n";
                         oss << "selected: " << c.selected << "\n";

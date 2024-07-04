@@ -166,6 +166,16 @@ namespace myseq {
             return v.x * height + v.y;
         }
 
+
+        Cell &get_cell(const V2i &coords) {
+            return cells.get(grid[coords_to_index(coords)]);
+        }
+
+        const Cell &get_cell(const V2i &coords) const {
+            return cells.get(grid[coords_to_index(coords)]);
+        }
+
+
     public:
         int id;
         int width;
@@ -227,11 +237,7 @@ namespace myseq {
             get_create_if_not_exists(c.position) = c;
         }
 
-        [[nodiscard]] const Cell &get_cell(const V2i &coords) const {
-            return cells.get(grid[coords_to_index(coords)]);
-        }
-
-        Cell &get_cell(const V2i &coords) {
+        [[nodiscard]] const Cell &get_cell_const_ref(const V2i &coords) const {
             return cells.get(grid[coords_to_index(coords)]);
         }
 
