@@ -25,6 +25,10 @@ struct Id {
     [[nodiscard]] bool is_null() const {
         return index == -1;
     }
+
+    static Id null() {
+        return Id();
+    }
 };
 
 template<typename T>

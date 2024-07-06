@@ -1,3 +1,8 @@
+- [ ] After pasting, update the selection to be the pasted cells
+- [ ] vim-like selection visual selection (shift-v) , also jumping words/selecting with w
+- [ ] Left mouse button not intuitive sepecially on trackpad; implement same with extra custom "modifier" keys  (like T
+  for long ,.
+  note). And return pannig to left button
 - [~] Tied notes
 - [ ] Simpler key range designation UX
 - [ ] Fix undo: pop does not set dirty=true

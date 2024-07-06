@@ -175,6 +175,19 @@ namespace myseq {
             return cells.get(grid[coords_to_index(coords)]);
         }
 
+        Cell &get_create_if_not_exists(const V2i &coords) {
+            const auto idx = coords_to_index(coords);
+            const auto &cell_id = grid[idx];
+            if (cells.exists(cell_id)) {
+                return cells.get(cell_id);
+            } else {
+                const Cell cell = {coords, 127, false, 1};
+                const auto new_id = cells.push(cell);
+                grid[coords_to_index(coords)] = new_id;
+                return cells.get(new_id);
+            }
+        }
+
 
     public:
         int id;
@@ -220,21 +233,10 @@ namespace myseq {
             return cells.exists(grid[coords_to_index(coords)]);
         }
 
-        Cell &get_create_if_not_exists(const V2i &coords) {
-            const auto idx = coords_to_index(coords);
-            const auto &cell_id = grid[idx];
-            if (cells.exists(cell_id)) {
-                return cells.get(cell_id);
-            } else {
-                const Cell cell = {coords, 127, false, 1};
-                const auto new_id = cells.push(cell);
-                grid[coords_to_index(coords)] = new_id;
-                return cells.get(new_id);
-            }
-        }
-
         void set_cell(const Cell &c) {
-            get_create_if_not_exists(c.position) = c;
+            get_create_if_not_exists(c.position);
+            set_length(c.position, c.length);
+            set_velocity(c.position, c.velocity);
         }
 
         [[nodiscard]] const Cell &get_cell_const_ref(const V2i &coords) const {
@@ -242,7 +244,10 @@ namespace myseq {
         }
 
         void clear_cell(const V2i &coords) {
-            cells.remove(grid[coords_to_index(coords)]);
+            if (exists(coords)) {
+                set_length(coords, 1);
+                cells.remove(grid[coords_to_index(coords)]);
+            }
         }
 
         void put_cells(const std::vector<Cell> &cells, const V2i &at) {
@@ -312,8 +317,23 @@ namespace myseq {
         }
 
         void set_length(const V2i &v, int length) {
+            assert(length >= 1);
             if (exists(v)) {
-                get_cell(v).length = length;
+                Cell &cell = get_cell(v);
+                const auto &p = cell.position;
+                assert(p.x + length - 1 < this->width);
+                while (cell.length > length) {
+                    const auto index = coords_to_index(V2i(p.x + cell.length - 1, p.y));
+                    grid[index] = Id::null();
+                    cell.length--;
+                }
+                const auto cell_id = grid[coords_to_index(p)];
+                while (cell.length < length) {
+                    cell.length++;
+                    const auto coords = V2i(p.x + cell.length - 1, p.y);
+                    clear_cell(coords);
+                    grid[coords_to_index(coords)] = cell_id;
+                }
             }
         }
 

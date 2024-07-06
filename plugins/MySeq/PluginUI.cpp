@@ -98,8 +98,8 @@ START_NAMESPACE_DISTRHO
         ImVec2 offset;
         static constexpr int visible_rows = 12;
         static constexpr int visible_columns = 32;
-        float default_cell_width = 30.0f;
-        float default_cell_height = 24.0f;
+        float default_cell_width = 60.0f;
+        float default_cell_height = 48.0f;
         std::vector<myseq::Cell> clipboard;
         std::string instance_id = myseq::utils::gen_instance_id();
 
