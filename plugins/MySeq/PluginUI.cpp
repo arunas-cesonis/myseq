@@ -96,10 +96,10 @@ START_NAMESPACE_DISTRHO
         ImVec2 drag_started_mpos;
         int count = 0;
         ImVec2 offset;
-        static constexpr int visible_rows = 12;
+        static constexpr int visible_rows = 24;
         static constexpr int visible_columns = 32;
-        float default_cell_width = 60.0f;
-        float default_cell_height = 48.0f;
+        float default_cell_width = 20.0f;
+        float default_cell_height = 20.0f;
         std::vector<myseq::Cell> clipboard;
         std::string instance_id = myseq::utils::gen_instance_id();
 
@@ -108,7 +108,6 @@ START_NAMESPACE_DISTRHO
         std::optional<myseq::Stats> stats;
         myseq::State state;
         std::stack<myseq::State> undo_stack{};
-
 
         enum class Interaction {
             None,
@@ -376,6 +375,7 @@ START_NAMESPACE_DISTRHO
 
         void
         grid_paste(bool &dirty, myseq::Pattern &p) {
+            p.deselect_all();
             p.put_cells(clipboard, p.cursor);
             SET_DIRTY_PUSH_UNDO("paste");
         }
@@ -414,22 +414,22 @@ START_NAMESPACE_DISTRHO
                 grid_copy(p);
             } else if (key_pressed(ImGuiKey_P)) {
                 grid_paste(dirty, p);
-            } else if (key_pressed(ImGuiKey_K)) {
+            } else if (key_pressed_re(ImGuiKey_K)) {
                 if (p.cursor.y > 0) {
                     p.cursor.y -= 1;
                     SET_DIRTY();
                 }
-            } else if (key_pressed(ImGuiKey_J)) {
+            } else if (key_pressed_re(ImGuiKey_J)) {
                 if (p.cursor.y + 1 < p.height) {
                     p.cursor.y += 1;
                     SET_DIRTY();
                 }
-            } else if (key_pressed(ImGuiKey_H)) {
+            } else if (key_pressed_re(ImGuiKey_H)) {
                 if (p.cursor.x > 0) {
                     p.cursor.x -= 1;
                     SET_DIRTY();
                 }
-            } else if (key_pressed(ImGuiKey_L)) {
+            } else if (key_pressed_re(ImGuiKey_L)) {
                 if (p.cursor.x + 1 < p.width) {
                     p.cursor.x += 1;
                     SET_DIRTY();
@@ -468,6 +468,15 @@ START_NAMESPACE_DISTRHO
         static bool key_pressed(ImGuiKey key) {
             const bool repeat = false;
             return ImGui::IsKeyPressed(key, repeat);
+        }
+
+        static bool key_pressed_re(ImGuiKey key) {
+            const bool repeat = true;
+            return ImGui::IsKeyPressed(key, repeat);
+        }
+
+        static bool key_down(ImGuiKey key) {
+            return ImGui::IsKeyDown(key);
         }
 
         void
@@ -964,7 +973,7 @@ START_NAMESPACE_DISTRHO
 
                 general_keyboard_interaction(dirty);
 
-                ImGui::SetWindowFontScale(1.0);
+                ImGui::SetWindowFontScale(2.0);
 
                 show_grid(dirty);
 

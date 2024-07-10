@@ -236,6 +236,7 @@ namespace myseq {
         void set_cell(const Cell &c) {
             get_create_if_not_exists(c.position);
             set_length(c.position, c.length);
+            set_selected(c.position, c.length);
             set_velocity(c.position, c.velocity);
         }
 
