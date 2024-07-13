@@ -1,4 +1,4 @@
-- [ ] Can't see velocity numbers in upper half due to bright green .white
+- [ ] Tied notes play multiple notes
 - [x] After pasting, update the selection to be the pasted cells
 - [ ] vim-like selection visual selection (shift-v) , also jumping words/selecting with w
 - [ ] Left mouse button not intuitive sepecially on trackpad; implement same with extra custom "modifier" keys  (like T
@@ -23,3 +23,4 @@
 - [ ] Fix undo: check if state is equal when pushing to dedup and make impl easy
 - [ ] MIDI log
 - [ ] Recording
+- [ ] Can't see velocity numbers in upper half due to bright green .white
