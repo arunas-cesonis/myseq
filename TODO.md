@@ -1,5 +1,7 @@
-- [ ] Tied notes play multiple notes
+- [x] Tied notes play multiple notes
 - [x] After pasting, update the selection to be the pasted cells
+- [ ] Cursor only has X
+- [ ] Paste to same pitch, always
 - [ ] vim-like selection visual selection (shift-v) , also jumping words/selecting with w
 - [ ] Left mouse button not intuitive sepecially on trackpad; implement same with extra custom "modifier" keys  (like T
   for long ,.
