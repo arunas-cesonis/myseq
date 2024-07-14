@@ -12,11 +12,12 @@
 #include <iostream>
 #include <random>
 #include <chrono>
-#include <cassert>
 
 #include <optional>
 #include "src/DistrhoDefines.h"
 
+#include "MyAssert.hpp"
+#include "Utils.hpp"
 #include "TimePositionCalc.hpp"
 #include "GenArray.hpp"
 
@@ -433,6 +434,7 @@ namespace myseq {
         std::vector<Pattern> patterns;
         int selected = -1;
         bool play_selected = false;
+        bool play_note_triggered = false;
 
         State() = default;
 
@@ -558,6 +560,22 @@ namespace myseq {
         }
 
         static State from_json_string(const char *s);
+
+        void write_to_file(const char *state_file) const {
+            d_debug("write_file %s", state_file);
+            const auto value = to_json_string();
+            write_file(state_file, value.c_str(), value.size());
+        }
+
+        static std::optional<State> read_from_file(const char *state_file) {
+            d_debug("read_file %s", state_file);
+            const auto content = read_file(state_file);
+            if (content.has_value()) {
+                return {myseq::State::from_json_string(content.value().c_str())};
+            }
+            return {};
+        }
+
 
     };
 }

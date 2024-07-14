@@ -2,9 +2,7 @@
 // Created by Arunas on 14/06/2024.
 //
 
-#include <cista.h>
 #include "GenArray.hpp"
-
 
 void gen_array_test_const_iterator() {
     struct Test {

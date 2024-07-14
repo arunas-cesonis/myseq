@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <unordered_set>
-#include <cassert>
 #include <stack>
 #include "DistrhoUI.hpp"
 #include "PluginDSP.hpp"
@@ -8,6 +7,7 @@
 #include "Numbers.hpp"
 #include "Notes.hpp"
 #include "TimePositionCalc.hpp"
+#include "MyAssert.hpp"
 
 START_NAMESPACE_DISTRHO
 
@@ -81,8 +81,6 @@ START_NAMESPACE_DISTRHO
                            });
     }
 
-    namespace ipc = boost::interprocess;
-
     class MySeqUI : public UI {
     public:
         uint8_t drag_started_velocity = 0;
@@ -104,6 +102,9 @@ START_NAMESPACE_DISTRHO
         std::string instance_id = myseq::utils::gen_instance_id();
 
         bool show_metrics = false;
+        std::optional<std::string> state_file;
+        bool autosave = true;
+        bool file_browser_saving = false;
 
         std::optional<myseq::Stats> stats;
         myseq::State state;
@@ -125,6 +126,15 @@ START_NAMESPACE_DISTRHO
         MySeqUI()
                 : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
             const double scaleFactor = getScaleFactor();
+
+            const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE");
+            if (nullptr != myseq_load_json_file) {
+                state_file = std::string(myseq_load_json_file);
+                read_state_file();
+            } else {
+                state = myseq::State();
+            }
+
 
             myseq::test_serialize();
             // init_shm();
@@ -153,6 +163,9 @@ START_NAMESPACE_DISTRHO
             publish_last_bytes = (int) s.length();
             d_debug("PluginUI: setState key=pattern value=%s", s.c_str());
             setState("pattern", s.c_str());
+            if (autosave) {
+                state.write_to_file(state_file->c_str());
+            }
 // #ifdef DEBUG
             {
                 state = myseq::State::from_json_string(s.c_str());
@@ -198,6 +211,7 @@ START_NAMESPACE_DISTRHO
         void push_undo() {
             undo_stack.push(state);
         }
+
 
         void pop_undo() {
             if (undo_stack.size() > 1) {
@@ -269,7 +283,7 @@ START_NAMESPACE_DISTRHO
             return result;
         }
 
-        void show_keys(myseq::Pattern &p) {
+        void show_keys(bool &dirty, myseq::Pattern &p) {
             const auto width = ImGui::GetContentRegionAvail().x;
             const auto height = 70.0f;
             const auto cpos = ImGui::GetCursorPos() - ImVec2(
@@ -347,11 +361,17 @@ START_NAMESPACE_DISTRHO
                     const auto note1 = std::max(0, (int) std::floor((mpos.x - cpos.x) / key_width));
                     const auto note2 = std::max(0, (int) std::floor((drag_started_mpos.x - cpos.x) / key_width));
                     if (note1 < note2) {
-                        p.first_note = note1;
-                        p.last_note = note2;
+                        if (p.first_note != note1 || p.last_note != note2) {
+                            dirty = true;
+                            p.first_note = note1;
+                            p.last_note = note2;
+                        }
                     } else {
-                        p.first_note = note2;
-                        p.last_note = note1;
+                        if (p.first_note != note2 || p.last_note != note1) {
+                            dirty = true;
+                            p.first_note = note2;
+                            p.last_note = note1;
+                        }
                     }
                 } else if (ImGui::BeginTooltip()) {
                     const auto note = (int) std::floor((ImGui::GetMousePos().x - cpos.x) / key_width);
@@ -950,6 +970,36 @@ START_NAMESPACE_DISTRHO
             return result;
         }
 
+        void read_state_file() {
+            const auto s = read_file(state_file->c_str());
+            if (s.has_value()) {
+                d_debug("read %lu bytes from %s", s->size(), state_file->c_str());
+                state = myseq::State::from_json_string(s->c_str());
+                publish();
+            } else {
+                d_debug("could not read %s", state_file->c_str());
+            }
+        }
+
+        void write_state_file() {
+            const auto s = state.to_json_string();
+            const auto cs = s.c_str();
+            d_debug("writing %lu bytes to %s", s.size(), state_file->c_str());
+            write_file(state_file->c_str(), cs, s.size());
+        }
+
+        void uiFileBrowserSelected(const char *filename) override {
+            if (nullptr == filename) {
+                return;
+            }
+            state_file = filename;
+            if (file_browser_saving) {
+                write_state_file();
+            } else {
+                read_state_file();
+            }
+        }
+
         void onImGuiDisplay() override {
             // ImGui::SetNextWindowPos(ImVec2(0, 0));
             //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
@@ -991,16 +1041,24 @@ START_NAMESPACE_DISTRHO
 
                 ImGui::SameLine();
                 ImGui::BeginGroup();
-                if (ImGui::Button("Add")) {
-                    create = true;
+                if (ImGui::Button("Load file")) {
+                    FileBrowserOptions options{};
+                    file_browser_saving = false;
+                    this->openFileBrowser(options);
                 }
                 ImGui::SameLine();
-                if (ImGui::Button("Delete")) {
-                    delete_ = true;
+                if (ImGui::Button("Save file")) {
+                    FileBrowserOptions options{};
+                    options.saving = true;
+                    file_browser_saving = true;
+                    this->openFileBrowser(options);
                 }
-                ImGui::SameLine();
-                if (ImGui::Button("Duplicate")) {
-                    duplicate = true;
+                if (!state_file.has_value()) {
+                    ImGui::Text("No file loaded");
+                } else {
+                    ImGui::Text("%s", state_file->c_str());
+                    if (ImGui::Checkbox("Autosave", &autosave)) {
+                    }
                 }
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
@@ -1067,10 +1125,23 @@ START_NAMESPACE_DISTRHO
                     });
                     ImGui::EndTable();
                 }
-
+                if (ImGui::Button("Add")) {
+                    create = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Delete")) {
+                    delete_ = true;
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Duplicate")) {
+                    duplicate = true;
+                }
 
                 if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
                     SET_DIRTY_PUSH_UNDO("play_selected");
+                }
+                if (ImGui::Checkbox("Play note triggered patterns", &state.play_note_triggered)) {
+                    SET_DIRTY_PUSH_UNDO("play_note_triggered");
                 }
                 if (ImGui::GetIO().KeyAlt) ImGui::Text("Alt");
                 if (ImGui::GetIO().KeyCtrl) ImGui::Text("Ctrl");
@@ -1088,7 +1159,7 @@ START_NAMESPACE_DISTRHO
                     }
                 }
 
-                show_keys(state.get_selected_pattern());
+                show_keys(dirty, state.get_selected_pattern());
 
                 if (ImGui::Button("Show metrics")) {
                     show_metrics = true;
@@ -1100,16 +1171,22 @@ START_NAMESPACE_DISTRHO
                 //ImGui::PopID();
                 ImGui::BeginGroup();
 
-                const TimePosition &t = ((MySeqPlugin *) getPluginInstancePointer())->last_time_position;
-                const double sr = ((MySeqPlugin *) getPluginInstancePointer())->getSampleRate();
+                const auto dsp = ((MySeqPlugin *) getPluginInstancePointer());
+                const TimePosition &t = dsp->last_time_position;
+                const double sr = dsp->getSampleRate();
+
                 const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
                 auto fps = ImGui::GetCurrentContext()->IO.Framerate;
                 if (fps > 999.9) {
                     ImGui::Text("FPS=+999.9");
                 } else {
-                    ImGui::Text("FPS=%.1f", ImGui::GetCurrentContext()->IO.Framerate);
+                    ImGui::Text("FPS=%.1f", fps);
+                }
+                if (ImGui::Button("fail asser")) {
+                    assert(false);
                 }
 
+                ImGui::Text("active_patterns=%lu", dsp->player.active_patterns.size());
                 ImGui::Text("tick=%f", tc.global_tick());
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));
                 int selected_cells_count = 0;

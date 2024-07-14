@@ -5,19 +5,17 @@
 #ifndef MY_PLUGINS_PLUGINDSP_HPP
 #define MY_PLUGINS_PLUGINDSP_HPP
 
-#include <cassert>
 #include <random>
+#include <filesystem>
 #include <chrono>
 #include <map>
-#include <cista.h>
 #include <iomanip>
+#include "MyAssert.hpp"
 #include "DistrhoPlugin.hpp"
 #include "Patterns.hpp"
-#include "Stats.hpp"
 #include "Player.hpp"
+#include "Utils.hpp"
 #include "TimePositionCalc.hpp"
-
-namespace ipc = boost::interprocess;
 
 START_NAMESPACE_DISTRHO
 
@@ -33,7 +31,6 @@ START_NAMESPACE_DISTRHO
         std::string instance_id = "";
         TimePosition last_time_position;
         int iteration = 0;
-        bool prev_play_selected = false;
 
         myseq::Stats stats;
 
@@ -98,12 +95,12 @@ START_NAMESPACE_DISTRHO
 
             // if only currently selected (in the UI) pattern should be played
             if (state.play_selected) {
-                player.ensure_playing_selected_pattern(state);
-            } else if (prev_play_selected) {
-                player.stop_all();
+                player.play_selected_pattern(state);
+            } else {
+                player.stop_selected_pattern();
             }
 
-            if (!state.play_selected) {
+            if (state.play_note_triggered) {
                 for (auto i = 0; i < (int) midiEventCount; i++) {
                     auto &ev = midiEvents[i];
 
@@ -113,11 +110,11 @@ START_NAMESPACE_DISTRHO
                         const auto time = tp.time + (ev.frame / tc.frames_per_tick());
                         switch (v.type) {
                             case myseq::NoteMessage::Type::NoteOn:
-                                d_debug("PluginDSP: IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
-                                player.start_patterns(state, v.note, v.velocity, time, tp);
+//                                d_debug("PluginDSP: IN: NOTE ON  %3d %d:%d", v.note.note, iteration, ev.frame);
+                                player.start_note_triggered(state, v.note, v.velocity, time, tp);
                                 break;
                             case myseq::NoteMessage::Type::NoteOff:
-                                d_debug("PluginDSP: IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
+//                                d_debug("PluginDSP: IN: NOTE OFF %3d %d:%d", v.note.note, iteration, ev.frame);
                                 player.stop_patterns(v.note, time);
                                 break;
                             default:
@@ -125,6 +122,9 @@ START_NAMESPACE_DISTRHO
                         }
                     }
                 }
+
+            } else {
+                player.stop_note_triggered();
             }
 
             auto send = [&](uint8_t note, uint8_t velocity, double time) {
@@ -143,8 +143,6 @@ START_NAMESPACE_DISTRHO
                 d_debug("PluginDSP: OUT: NOTE %s %3d %d:%d", k, note, iteration, evt.frame);
                 writeMidiEvent(evt);
             };
-
-            prev_play_selected = state.play_selected;
             player.run(send, state, tp);
         }
 
@@ -212,7 +210,6 @@ START_NAMESPACE_DISTRHO
                     st.key = "pattern";
                     st.label = "pattern";
                     state = myseq::State();
-                    //{"selected":0,"patterns":[{"width":32,"id":0,"height":128,"first_note":0,"last_note":15,"cursor_x":0,"cursor_y":91," cells":[{"x":0,"y":91,"v":127},{"x":4,"y":91,"v":127},{"x":8,"y":91,"v":127},{"x":16,"y":91,"v":127},{"x":20,"y":91,"v":127},{"x":12,"y":91,"v":127},{"x":24,"y":91,"v":127}]}]}
                     st.defaultValue = String(state.to_json_string().c_str());
                     break;
                 case 1:

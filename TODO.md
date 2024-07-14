@@ -5,11 +5,11 @@
 - [ ] Left mouse button not intuitive sepecially on trackpad; implement same with extra custom "modifier" keys  (like T
   for long ,.
   note). And return pannig to left button
-- [~] Tied notes
+- [x] Tied notes
 - [ ] Simpler key range designation UX
 - [ ] Fix undo: pop does not set dirty=true
 - [ ] Fix undo: dragging & drawing should only push on mouse up
-- [ ] Fix tied: does not work on open HH before second snare
+- [x] Fix tied: does not work on open HH before second snare
 - [x] Apply incoming velocity
 - [x] Make 32 steps always visible
 - [x] Add "Play current pattern", like in Renoise

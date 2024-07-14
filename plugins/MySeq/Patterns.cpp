@@ -51,6 +51,7 @@ namespace myseq {
         State state;
         state.selected = d["selected"].GetInt();
         state.play_selected = d.HasMember("play_selected") ? d["play_selected"].GetBool() : false;
+        state.play_note_triggered = d.HasMember("play_note_triggered") ? d["play_note_triggered"].GetBool() : false;
         for (rapidjson::SizeType i = 0; i < arr.Size(); i++) {
             auto obj = arr[i].GetObject();
             state.patterns.push_back(pattern_from_json(obj));
@@ -117,6 +118,7 @@ namespace myseq {
         d.SetObject();
         d.GetObject().AddMember("selected", this->selected, d.GetAllocator());
         d.GetObject().AddMember("play_selected", this->play_selected, d.GetAllocator());
+        d.GetObject().AddMember("play_note_triggered", this->play_note_triggered, d.GetAllocator());
         rapidjson::Value patterns_arr(rapidjson::kArrayType);
         for (auto p: this->patterns) {
             rapidjson::Value o = pattern_to_json(p, d.GetAllocator());

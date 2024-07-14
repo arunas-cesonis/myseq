@@ -7,8 +7,8 @@
 #include <vector>
 #include <optional>
 #include <set>
-#include <cassert>
 #include <algorithm>
+#include "MyAssert.hpp"
 
 struct Id {
     int index;

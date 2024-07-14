@@ -7,6 +7,7 @@
 
 #include <optional>
 #include <sstream>
+#include "MyAssert.hpp"
 #include "Patterns.hpp"
 #include "TimePositionCalc.hpp"
 #include "Stats.hpp"
@@ -74,6 +75,7 @@ namespace myseq {
 
     struct Player {
         std::vector<ActivePattern> active_patterns;
+        std::optional<ActivePattern> selected_active_pattern;
         ActiveNotes an = ActiveNotes();
 
         Player() = default;
@@ -85,16 +87,20 @@ namespace myseq {
             return percent_from_start * pattern_duration;
         }
 
-        void ensure_playing_selected_pattern(const myseq::State &state) {
-            active_patterns.clear();
+        void play_selected_pattern(const myseq::State &state) {
             auto &p = state.get_selected_pattern();
             const ActivePattern ap = {p.get_id(), 0.0, 0.0, false, Note(p.get_first_note(), 0), 127};
-            active_patterns.push_back(ap);
+            selected_active_pattern = {ap};
+        }
+
+        void stop_selected_pattern() {
+            selected_active_pattern = {};
         }
 
         void
-        start_patterns(const State &state, const Note &note, uint8_t velocity, double start_time,
-                       const TimeParams &tp) {
+        start_note_triggered(const State &state, const Note &note, uint8_t velocity, double start_time,
+                             const TimeParams &tp) {
+            d_debug("start_note_triggered: %d %d %f", note.note, velocity, start_time);
             active_patterns.erase(
                     std::remove_if(active_patterns.begin(), active_patterns.end(), [&note](auto other) -> bool {
                         return other.note == note;
@@ -110,6 +116,7 @@ namespace myseq {
         }
 
         void stop_patterns(const Note &note, double end_time) {
+            d_debug("stop_patterns: %d %f", note.note, end_time);
             for (auto &ap: active_patterns) {
                 if (ap.note == note && !ap.finished) {
                     ap.end_time = end_time;
@@ -118,7 +125,7 @@ namespace myseq {
             }
         }
 
-        void stop_all() {
+        void stop_note_triggered() {
             active_patterns.clear();
         }
 
@@ -146,6 +153,84 @@ namespace myseq {
                 };
                 stats.active_patterns.push_back(aps);
             }
+            if (selected_active_pattern.has_value()) {
+                const auto &ap = *selected_active_pattern;
+                const auto &p = state.get_pattern(ap.pattern_id);
+                myseq::ActivePatternStats aps = {
+                        .pattern_id = ap.pattern_id,
+                        .duration = calc_pattern_duration(p, tp),
+                        .time = std::fmod(calc_pattern_elapsed(ap, tp), aps.duration)
+                };
+                stats.active_patterns.push_back(aps);
+            }
+        }
+
+        template<typename F>
+        bool
+        run_active_pattern(F note_event, const ActivePattern &ap, const myseq::State &state, const TimeParams &tp) {
+            const auto &p = state.get_pattern(ap.pattern_id);
+            double window_start = tp.time;
+            double window_end = ap.finished ? std::min(window_start + tp.window, ap.end_time) :
+                                window_start + tp.window;
+
+            if (window_start >= window_end) {
+                return false;
+            }
+
+            double pattern_elapsed = window_start - ap.start_time;
+            double pattern_duration = tp.step_duration * static_cast<double>(p.width);
+            double pattern_time = std::fmod(pattern_elapsed, pattern_duration);
+            auto next_column = static_cast<int>(std::ceil(
+                    std::fmod(pattern_elapsed, pattern_duration) / tp.step_duration));
+
+            auto last_column = static_cast<int>(std::floor(
+                    (pattern_time + tp.window) / tp.step_duration));
+
+            if (next_column < 0 || last_column < 0) {
+                return true;
+            }
+
+            for (auto i = next_column; i <= last_column; i++) {
+                const auto column_index = i % p.width;
+                auto column_time = static_cast<double>(i) * tp.step_duration - pattern_time;
+                for (int row_index = 0; row_index < p.height; row_index++) {
+                    const auto coords = V2i(column_index, row_index);
+                    if (p.is_extension_of_tied(coords)) {
+                        continue;
+                    }
+                    const auto v = p.get_velocity(coords);
+                    if (v > 0) {
+                        const auto length = static_cast<double>(p.get_length(coords));
+                        const auto step_end_time = window_start + column_time + tp.step_duration * length;
+                        const auto note_end_time = ap.finished ? std::min(step_end_time,
+                                                                          ap.end_time)
+                                                               : step_end_time;
+
+                        // This check prevents 0-length notes being played when input note ends
+                        // exactly at the end of the step and just before the beginning of the next step
+                        // I believe this is caused by either note starting time calculation or
+                        // pattern end time calculation being incorrect (or both)
+                        // 1.0 here represents 1 MIDI tick which is supposed to be the smallest possible note length
+                        // however it seems that <1.0 is also a valid note length (at least in REAPER)
+                        const auto note_length = note_end_time - (window_start + column_time);
+                        if (note_length > (ap.finished ? 1.0 : 0.0)) {
+                            if (ap.finished) {
+                                d_debug("FINISHED NOTE ON iteration=%d note=%d time=%f note_length=%f",
+                                        tp.iteration,
+                                        ap.note.note,
+                                        tp.time + column_time,
+                                        note_length);
+                            }
+                            an.play_note(note_event, utils::row_index_to_midi_note(row_index),
+                                         note_out_velocity(ap, v),
+                                         column_time,
+                                         note_end_time
+                            );
+                        }
+                    }
+                }
+            }
+            return true;
         }
 
         template<typename F>
@@ -153,71 +238,15 @@ namespace myseq {
             if (tp.playing) {
                 for (auto it = active_patterns.begin(); it != active_patterns.end();) {
                     const auto &ap = *it;
-                    const auto &p = state.get_pattern(ap.pattern_id);
-                    double window_start = tp.time;
-                    double window_end = ap.finished ? std::min(window_start + tp.window, ap.end_time) :
-                                        window_start + tp.window;
-
-                    if (window_start >= window_end) {
+                    if (!run_active_pattern(note_event, ap, state, tp)) {
+                        d_debug("REMOVING ACTIVE PATTERN %d", ap.pattern_id);
                         it = active_patterns.erase(it);
-                        continue;
                     } else {
                         ++it;
                     }
-
-                    double pattern_elapsed = window_start - ap.start_time;
-                    double pattern_duration = tp.step_duration * static_cast<double>(p.width);
-                    double pattern_time = std::fmod(pattern_elapsed, pattern_duration);
-                    auto next_column = static_cast<int>(std::ceil(
-                            std::fmod(pattern_elapsed, pattern_duration) / tp.step_duration));
-
-                    auto last_column = static_cast<int>(std::floor(
-                            (pattern_time + tp.window) / tp.step_duration));
-
-                    if (next_column < 0 || last_column < 0) {
-                        continue;
-                    }
-
-                    for (auto i = next_column; i <= last_column; i++) {
-                        const auto column_index = i % p.width;
-                        auto column_time = static_cast<double>(i) * tp.step_duration - pattern_time;
-                        for (int row_index = 0; row_index < p.height; row_index++) {
-                            const auto coords = V2i(column_index, row_index);
-                            if (p.is_extension_of_tied(coords)) {
-                                continue;
-                            }
-                            const auto v = p.get_velocity(coords);
-                            if (v > 0) {
-                                const auto length = static_cast<double>(p.get_length(coords));
-                                const auto step_end_time = window_start + column_time + tp.step_duration * length;
-                                const auto note_end_time = ap.finished ? std::min(step_end_time,
-                                                                                  ap.end_time)
-                                                                       : step_end_time;
-
-                                // This check prevents 0-length notes being played when input note ends
-                                // exactly at the end of the step and just before the beginning of the next step
-                                // I believe this is caused by either note starting time calculation or
-                                // pattern end time calculation being incorrect (or both)
-                                // 1.0 here represents 1 MIDI tick which is supposed to be the smallest possible note length
-                                // however it seems that <1.0 is also a valid note length (at least in REAPER)
-                                const auto note_length = note_end_time - (window_start + column_time);
-                                if (note_length > (ap.finished ? 1.0 : 0.0)) {
-                                    if (ap.finished) {
-                                        d_debug("FINISHED NOTE ON iteration=%d note=%d time=%f note_length=%f",
-                                                tp.iteration,
-                                                ap.note.note,
-                                                tp.time + column_time,
-                                                note_length);
-                                    }
-                                    an.play_note(note_event, utils::row_index_to_midi_note(row_index),
-                                                 note_out_velocity(ap, v),
-                                                 column_time,
-                                                 note_end_time
-                                    );
-                                }
-                            }
-                        }
-                    }
+                }
+                if (selected_active_pattern.has_value()) {
+                    run_active_pattern(note_event, *selected_active_pattern, state, tp);
                 }
                 an.handle_note_offs(note_event, tp);
             } else {
@@ -243,8 +272,8 @@ namespace myseq {
             tp.time = 0.0;
             tp.playing = true;
 
-            player.start_patterns(state, Note{(uint8_t) p.first_note, 0}, 127, 0.0, tp);
-            player.start_patterns(state, Note{(uint8_t) 10, 0}, 127, 0.0, tp);
+            player.start_note_triggered(state, Note{(uint8_t) p.first_note, 0}, 127, 0.0, tp);
+            player.start_note_triggered(state, Note{(uint8_t) 10, 0}, 127, 0.0, tp);
 
             player.run([](uint8_t note, double velocity, double time) {
                 std::cout << "note=" << (int) note << " velocity=" << velocity << " time=" << time << std::endl;
