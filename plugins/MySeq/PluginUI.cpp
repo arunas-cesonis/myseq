@@ -98,7 +98,7 @@ START_NAMESPACE_DISTRHO
         ImVec2 offset;
         static constexpr int visible_rows = 24;
         static constexpr int visible_columns = 32;
-        float default_cell_width = 20.0f;
+        float default_cell_width = 100.0f;
         float default_cell_height = 20.0f;
         std::vector<myseq::Cell> clipboard;
         std::string instance_id = myseq::utils::gen_instance_id();
@@ -129,7 +129,8 @@ START_NAMESPACE_DISTRHO
             myseq::test_serialize();
             // init_shm();
 
-            offset = ImVec2(0.0f, -default_cell_height * (float) (visible_rows + 72));
+            // offset = ImVec2(0.0f, -default_cell_height * (float) (visible_rows + 72));
+            offset = ImVec2(0.0f, 500000.0f);
 
             if (d_isEqual(scaleFactor, 1.0)) {
                 setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
@@ -150,7 +151,7 @@ START_NAMESPACE_DISTRHO
         void publish() {
             auto s = state.to_json_string();
             publish_last_bytes = (int) s.length();
-            d_debug("PluginUI: setSatte key=pattern value=%s", s.c_str());
+            d_debug("PluginUI: setState key=pattern value=%s", s.c_str());
             setState("pattern", s.c_str());
 // #ifdef DEBUG
             {
@@ -221,6 +222,7 @@ START_NAMESPACE_DISTRHO
                 return {-1, -1};
             }
         }
+
 
         static int note_select(int note) {
             int selected_octave = note / 12;
@@ -606,9 +608,14 @@ START_NAMESPACE_DISTRHO
                 case Interaction::RectSelectingCells:
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
                         //
+                        const auto sr = selection_rectangle(p, mpos, grid_cpos, grid_size, cell_size);
+                        d_debug("cell_min.x %d cell_min.y %d cell_max.x %d cell_max.y %d", sr.cell_min.x, sr.cell_min.y,
+                                sr.cell_max.x, sr.cell_max.y);
                     } else {
                         const auto sr = selection_rectangle(p, mpos, grid_cpos, grid_size, cell_size);
                         p.deselect_all();
+                        d_debug("cell_min.x %d cell_min.y %d cell_max.x %d cell_max.y %d", sr.cell_min.x, sr.cell_min.y,
+                                sr.cell_max.x, sr.cell_max.y);
                         for (int x = sr.cell_min.x; x <= sr.cell_max.x; x++)
                             for (int y = sr.cell_min.y; y <= sr.cell_max.y; y++) {
                                 const auto v = V2i(x, y);
@@ -746,26 +753,26 @@ START_NAMESPACE_DISTRHO
         }
 
         void show_grid(bool &dirty) {
+            float grid_width = ImGui::CalcItemWidth();
+            auto cell_width =
+                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
+                                                                                                        (float) visible_columns;
+            auto cell_size = ImVec2(cell_width, default_cell_height);
+            auto grid_height = cell_size.y * (float) visible_rows;
+            const auto grid_size = ImVec2(grid_width, grid_height);
             auto &p = state.get_selected_pattern();
+
+            grid_viewport_mouse_pan();
+            grid_viewport_limit_panning(cell_size, grid_size, p);
+
             const auto &aps = get_pattern_stats(p.get_id());
             float cell_padding = 4.0;
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
-            float grid_width = ImGui::CalcItemWidth();
             const auto active_cell = ImColor(0x7a, 0xaa, 0xef);
             const auto inactive_cell = ImColor(0x25, 0x25, 0x25);
             const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto grid_cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
 
-            // fit at least visible_columns horizontally so that
-            // most common pattern setup only need to be scrolled vertically
-            auto cell_width =
-                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
-                                                                                                        (float) visible_columns;
-
-            auto cell_size = ImVec2(cell_width, default_cell_height);
-            // auto cell_size = ImVec2(grid_width / (float) p.width, default_cell_height);
-            auto grid_height = cell_size.y * (float) visible_rows;
-            const auto grid_size = ImVec2(grid_width, grid_height);
             auto mpos = ImGui::GetMousePos();
             auto mcell = calc_cell(p, grid_cpos, mpos, grid_size, cell_size);
             auto *draw_list = ImGui::GetWindowDrawList();
@@ -790,6 +797,9 @@ START_NAMESPACE_DISTRHO
             if (aps.has_value()) {
                 active_column = (int) std::floor((double) p.width * (aps->time / aps->duration));
             }
+
+
+            const SelectionRectangle sr = selection_rectangle(p, mpos, grid_cpos, grid_size, cell_size);
 
             int skip[128]{};
 
@@ -848,6 +858,8 @@ START_NAMESPACE_DISTRHO
                                  || (mcell.x <= loop_cell.x && loop_cell.x <= drag_started_cell.x))) {
                             cell_color1 = active_cell;
                         }
+                    } else if (interaction == Interaction::RectSelectingCells) {
+                        // highlight the cells to be selescted
                     }
 
                     if (j == active_column) {
@@ -900,14 +912,13 @@ START_NAMESPACE_DISTRHO
 
             if (interaction == Interaction::RectSelectingCells) {
                 const auto rect = rect_selecting(mpos);
+                //    const auto sr = selection_rectangle(p, mpos, grid_cpos, grid_size, cell_size);
                 draw_list->AddRect(rect.first, rect.second, active_cell);
             }
 
             draw_list->PopClipRect();
             ImGui::Dummy(ImVec2(grid_width, grid_height));
             //
-            grid_viewport_mouse_pan();
-            grid_viewport_limit_panning(cell_size, grid_size, p);
             if (cursor_dirty) grid_viewport_pan_to_cursor(cell_size, grid_size, p);
             grid_interaction(dirty, p, grid_cpos, grid_size, cell_size, mcell);
         }
@@ -921,7 +932,8 @@ START_NAMESPACE_DISTRHO
         [[nodiscard]] SelectionRectangle
         selection_rectangle(const myseq::Pattern &p, const ImVec2 &mpos, const ImVec2 &grid_cpos,
                             const ImVec2 &grid_size, const ImVec2 &cell_size) const {
-            const auto rect = rect_selecting(mpos);
+            const auto mpos_clamped = ImClamp(mpos, grid_cpos, grid_cpos + grid_size - cell_size * 0.5);
+            const auto rect = rect_selecting(mpos_clamped);
             const auto cell_min = calc_cell(p, grid_cpos, rect.first, grid_size, cell_size);
             const auto cell_max = calc_cell(p, grid_cpos, rect.second, grid_size, cell_size);
             return {rect.first, rect.second, cell_min, cell_max};
@@ -973,7 +985,7 @@ START_NAMESPACE_DISTRHO
 
                 general_keyboard_interaction(dirty);
 
-                ImGui::SetWindowFontScale(2.0);
+                ImGui::SetWindowFontScale(1.0);
 
                 show_grid(dirty);
 
@@ -1097,7 +1109,6 @@ START_NAMESPACE_DISTRHO
                 } else {
                     ImGui::Text("FPS=%.1f", ImGui::GetCurrentContext()->IO.Framerate);
                 }
-
 
                 ImGui::Text("tick=%f", tc.global_tick());
                 ImGui::Text("interaction=%s", interaction_to_string(interaction));

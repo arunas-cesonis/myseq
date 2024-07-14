@@ -62,11 +62,6 @@ namespace myseq {
         }
     };
 
-    struct NotePlayer {
-        std::map<Note, double> vector;
-
-    };
-
     struct ActivePattern {
         int pattern_id;
         double start_time;
@@ -143,11 +138,12 @@ namespace myseq {
 
         void push_active_pattern_stats(myseq::Stats &stats, const myseq::State &state, const TimeParams &tp) {
             for (const auto &ap: active_patterns) {
-                myseq::ActivePatternStats aps;
                 const auto &p = state.get_pattern(ap.pattern_id);
-                aps.pattern_id = ap.pattern_id;
-                aps.duration = calc_pattern_duration(p, tp);
-                aps.time = std::fmod(calc_pattern_elapsed(ap, tp), aps.duration);
+                myseq::ActivePatternStats aps = {
+                        .pattern_id = ap.pattern_id,
+                        .duration = calc_pattern_duration(p, tp),
+                        .time = std::fmod(calc_pattern_elapsed(ap, tp), aps.duration)
+                };
                 stats.active_patterns.push_back(aps);
             }
         }
@@ -187,6 +183,9 @@ namespace myseq {
                         auto column_time = static_cast<double>(i) * tp.step_duration - pattern_time;
                         for (int row_index = 0; row_index < p.height; row_index++) {
                             const auto coords = V2i(column_index, row_index);
+                            if (p.is_extension_of_tied(coords)) {
+                                continue;
+                            }
                             const auto v = p.get_velocity(coords);
                             if (v > 0) {
                                 const auto length = static_cast<double>(p.get_length(coords));

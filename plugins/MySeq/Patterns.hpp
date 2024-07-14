@@ -41,6 +41,11 @@ namespace myseq {
             return std::string("myseq_") + std::to_string(gen_id());
         }
 
+        static uint8_t midi_note_to_row_index(std::size_t note) {
+            assert(note >= 0 && note <= 127);
+            return 127 - note;
+        }
+
         static uint8_t row_index_to_midi_note(std::size_t row) {
             assert(row >= 0 && row <= 127);
             return 127 - row;
@@ -311,6 +316,10 @@ namespace myseq {
             }
         }
 
+        [[nodiscard]] bool is_extension_of_tied(const V2i &v) const {
+            return exists(v) && get_cell(v).position != v;
+        }
+
         void set_selected(const V2i &v, bool selected) {
             if (exists(v)) {
                 get_cell(v).selected = selected;
@@ -403,6 +412,18 @@ namespace myseq {
 
         [[nodiscard]] int get_height() const {
             return height;
+        }
+
+        void move_cursor_to_lowest_note() {
+            int lowest = 127;
+            for (const auto &c: cells) {
+                const auto note = utils::row_index_to_midi_note(c.position.y);
+                if (note < lowest) {
+                    lowest = note;
+                }
+            }
+            cursor.x = 0;
+            cursor.y = utils::midi_note_to_row_index(lowest);
         }
     };
 
