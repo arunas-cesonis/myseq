@@ -364,21 +364,21 @@ START_NAMESPACE_DISTRHO
         void
         grid_copy(const myseq::Pattern &p) {
             clipboard.clear();
-            V2i top_left(p.width, p.height);
+            int min_x = p.width;
             p.each_selected_cell([&](const myseq::Cell &cell) {
-                top_left.x = std::min(cell.position.x, top_left.x);
-                top_left.y = std::min(cell.position.y, top_left.y);
+                min_x = std::min(cell.position.x, min_x);
                 clipboard.emplace_back(cell);
             });
             for (auto &i: clipboard) {
-                i.position -= top_left;
+                i.position.x -= min_x;
             }
         }
 
         void
         grid_paste(bool &dirty, myseq::Pattern &p) {
             p.deselect_all();
-            p.put_cells(clipboard, p.cursor);
+            const auto at = V2i(p.cursor.x, 0);
+            p.put_cells(clipboard, at);
             SET_DIRTY_PUSH_UNDO("paste");
         }
 
