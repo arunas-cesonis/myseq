@@ -99,7 +99,6 @@ START_NAMESPACE_DISTRHO
         float default_cell_width = 100.0f;
         float default_cell_height = 20.0f;
         std::vector<myseq::Cell> clipboard;
-        std::string instance_id = myseq::utils::gen_instance_id();
 
         bool show_metrics = false;
         std::optional<std::string> state_file;
@@ -152,7 +151,6 @@ START_NAMESPACE_DISTRHO
             }
 
             gen_array_tests();
-            setState("instance_id", String(instance_id.c_str()));
         }
 
         int publish_count = 0;
@@ -241,7 +239,6 @@ START_NAMESPACE_DISTRHO
         static int note_select(int note) {
             int selected_octave = note / 12;
             int selected_note = note % 12;
-            auto width = ImGui::CalcItemWidth();
             auto notes = 127;
             auto octaves = (notes / 12) + (notes % 12 == 0 ? 0 : 1);
             static int click_count = 0;
@@ -297,8 +294,6 @@ START_NAMESPACE_DISTRHO
             dl->AddRectFilled(cpos, cpos + ImVec2(width, height), IM_COL32_WHITE);
             dl->AddRect(cpos, cpos + ImVec2(width, height), IM_COL32_BLACK);
             const auto selected_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_TextSelectedBg));
-            const auto border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border));
-            const auto border_shadow_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_BorderShadow));
             auto button_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Button));
             button_color.Value.w = 1.0f;
             const auto text_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Text));
@@ -459,7 +454,6 @@ START_NAMESPACE_DISTRHO
             } else {
                 const int updown = shift_held ? 12 : 1;
                 // For some reason CTRL+A makes A stuck
-                const bool no_repeat = false;
                 const int dy =
                         +(key_pressed(ImGuiKey_UpArrow) ? -updown : 0)
                         + (key_pressed(ImGuiKey_DownArrow) ? updown : 0);
@@ -505,7 +499,6 @@ START_NAMESPACE_DISTRHO
         grid_interaction(bool &dirty, myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size,
                          const ImVec2 &cell_size, const V2i &mcell
         ) {
-            auto shift_held = ImGui::GetIO().KeyShift;
             auto mpos = ImGui::GetMousePos();
             auto cursor_hovers_grid = mcell.x >= 0 && mcell.y >= 0;
             auto cursor_hovers_active_cell = cursor_hovers_grid && (p.get_velocity(mcell) > 0);
@@ -790,7 +783,6 @@ START_NAMESPACE_DISTRHO
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             const auto active_cell = ImColor(0x7a, 0xaa, 0xef);
             const auto inactive_cell = ImColor(0x25, 0x25, 0x25);
-            const auto hovered_color = ImColor(IM_COL32_WHITE);
             auto grid_cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
 
             auto mpos = ImGui::GetMousePos();
@@ -818,8 +810,6 @@ START_NAMESPACE_DISTRHO
                 active_column = (int) std::floor((double) p.width * (aps->time / aps->duration));
             }
 
-
-            const SelectionRectangle sr = selection_rectangle(p, mpos, grid_cpos, grid_size, cell_size);
 
             int skip[128]{};
 
@@ -1199,7 +1189,6 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("key a down=%d", ImGui::IsKeyDown(ImGuiKey_A));
                 ImGui::Text("key c down=%d", ImGui::IsKeyDown(ImGuiKey_C));
                 ImGui::Text("key v down=%d", ImGui::IsKeyDown(ImGuiKey_V));
-                ImGui::Text("instance_id=%s", instance_id.c_str());
                 ImGui::Text("publish_count=%d", publish_count);
                 ImGui::Text("publish_last_bytes=%d", publish_last_bytes);
                 ImGui::Text("selected_cells count=%d", selected_cells_count);
@@ -1257,8 +1246,6 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginUI: stateChanged key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
-            } else if (std::strcmp(key, "instance_id") == 0) {
-                d_debug("PluginUI: stateChanged instance_id=%s new=%s", instance_id.c_str(), value);
             }
         }
         // ----------------------------------------------------------------------------------------------------------------

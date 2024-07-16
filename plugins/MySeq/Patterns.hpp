@@ -30,18 +30,6 @@ namespace myseq {
 
     namespace utils {
 
-        static unsigned long gen_id() {
-            std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
-            const auto t = now.time_since_epoch().count();
-            std::mt19937 mt(t);
-            const auto r = mt();
-            return r;
-        }
-
-        static std::string gen_instance_id() {
-            return std::string("myseq_") + std::to_string(gen_id());
-        }
-
         static uint8_t midi_note_to_row_index(std::size_t note) {
             assert(note >= 0 && note <= 127);
             return 127 - note;

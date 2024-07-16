@@ -50,7 +50,7 @@ struct GenArray {
         int index;
 
         void seek_valid() {
-            while (index < ga->data.size() && !ga->data[index].has_value()) {
+            while (index < (int) ga->data.size() && !ga->data[index].has_value()) {
                 index++;
             }
         }
@@ -97,14 +97,14 @@ struct GenArray {
         int index;
 
         void seek_valid() {
-            while (index < ga->data.size() && !ga->data[index].has_value()) {
+            while (index < (int) ga->data.size() && !ga->data[index].has_value()) {
                 index++;
             }
         }
 
     public:
 
-        friend class GenArray<T>;
+        friend struct GenArray<T>;
 
         explicit iterator(GenArray<T> *ga, int _index = 0) : ga(ga), index(_index) {
             seek_valid();
@@ -140,7 +140,7 @@ struct GenArray {
         using reference = T &;
         using iterator_category = std::forward_iterator_tag;
 
-        friend class GenArray<T>;
+        friend struct GenArray<T>;
     };
 
     void verify_id(const Id &id) const {
@@ -148,7 +148,7 @@ struct GenArray {
     }
 
     void verify_index(const int index) const {
-        if (index >= data.size() || index < 0 || !data[index].has_value()) {
+        if (index >= (int) data.size() || index < 0 || !data[index].has_value()) {
             throw std::runtime_error("verify_index: does not exist");
         }
     }
@@ -175,7 +175,7 @@ struct GenArray {
         const auto actual = std::count_if(data.begin(), data.end(), [](const std::optional<T> &x) {
             return x.has_value();
         });
-        assert(ret == actual);
+        assert((int)ret == actual);
 #endif // DEBUG
         return ret;
     }

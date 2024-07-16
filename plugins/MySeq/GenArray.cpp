@@ -63,7 +63,7 @@ void gen_array_test_rand() {
             remaining_ids.push_back(id);
         }
     }
-    int actual_remaining = 0;
+    std::size_t actual_remaining = 0;
     for (const auto x: arr) {
         assert(!removed[x]);
         actual_remaining++;
@@ -86,8 +86,6 @@ void gen_array_test_rand() {
 }
 
 void gen_array_test_more_elements() {
-    std::chrono::high_resolution_clock clock;
-    auto start = clock.now();
     const int count = 1000 * 1000;
     std::srand(0);
     std::vector<Id> ids;
@@ -112,8 +110,6 @@ void gen_array_test_more_elements() {
         arr.push(removed[i]);
     }
     assert(arr.size() == count);
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(clock.now() - start).count();
-    //printf("Elapsed: %ld\n", elapsed);
 }
 
 void gen_array_test_basic() {

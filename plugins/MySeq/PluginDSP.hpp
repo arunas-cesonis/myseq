@@ -35,7 +35,7 @@ START_NAMESPACE_DISTRHO
         myseq::Stats stats;
 
         MySeqPlugin()
-                : Plugin(0, 0, 2) {
+                : Plugin(0, 0, 1) {
             myseq::Test::test_player_run();
         }
 
@@ -89,7 +89,7 @@ START_NAMESPACE_DISTRHO
                    && player.active_patterns[0].note == myseq::Note{127, 127};
         }
 
-        void run_player1(uint32_t frames, [[maybe_unused]] const MidiEvent *midiEvents,
+        void run_player1([[maybe_unused]] const MidiEvent *midiEvents,
                          [[maybe_unused]] uint32_t midiEventCount, const myseq::TimePositionCalc &tc,
                          const myseq::TimeParams &tp) {
 
@@ -129,8 +129,6 @@ START_NAMESPACE_DISTRHO
 
             auto send = [&](uint8_t note, uint8_t velocity, double time) {
                 const auto msg = velocity == 0 ? 0x80 : 0x90;
-                const auto note_on = msg == 0x90;
-                const auto absolute_time = tp.time + time;
                 const auto frame = static_cast<uint32_t>(time * tc.frames_per_tick());
                 const MidiEvent evt = {
                         frame,
@@ -161,7 +159,7 @@ START_NAMESPACE_DISTRHO
             const myseq::TimeParams tp = {tc.global_tick(), tc.sixteenth_note_duration_in_ticks(),
                                           ((double) frames) / tc.frames_per_tick(), t.playing, iteration};
 
-            run_player1(frames, midiEvents, midiEventCount, tc, tp);
+            run_player1(midiEvents, midiEventCount, tc, tp);
 
             stats.transport = myseq::transport_from_time_position(t);
             stats.active_patterns.clear();
@@ -175,7 +173,6 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginDSP: setState: key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
-            } else if (std::strcmp(key, "instance_id") == 0) {
             } else {
                 assert(false);
             }
@@ -185,8 +182,6 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginDSP: getState: key=%s instance_id=%s", key, instance_id.c_str());
             if (std::strcmp(key, "pattern") == 0) {
                 return String(state.to_json_string().c_str());
-            } else if (std::strcmp(key, "instance_id") == 0) {
-                return String(instance_id.c_str());
             } else {
                 assert(false);
             }
@@ -204,18 +199,13 @@ START_NAMESPACE_DISTRHO
             //   state.key = "ticks";
             //    state.defaultValue = "0";
             d_debug("PluginDSP: initState index=%d", index);
-            DISTRHO_SAFE_ASSERT(index <= 1);
+            DISTRHO_SAFE_ASSERT(index <= 0);
             switch (index) {
                 case 0:
                     st.key = "pattern";
                     st.label = "pattern";
                     state = myseq::State();
                     st.defaultValue = String(state.to_json_string().c_str());
-                    break;
-                case 1:
-                    st.key = "instance_id";
-                    st.label = "instance_id";
-                    st.defaultValue = String(myseq::utils::gen_instance_id().c_str());
                     break;
             }
         }

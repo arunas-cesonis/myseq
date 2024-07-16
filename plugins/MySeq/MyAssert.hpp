@@ -7,6 +7,10 @@
 
 #include <cpptrace/cpptrace.hpp>
 
+#ifdef assert
+#undef assert
+#endif
+
 #define assert(cond) { if (!(cond)) { fprintf(stderr, "Assertion failed at %s line %d\n", __FILE__, __LINE__); cpptrace::generate_trace().print();  abort(); } }
 
 #endif //MY_PLUGINS_MYASSERT_H
