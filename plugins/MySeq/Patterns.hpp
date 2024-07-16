@@ -431,8 +431,10 @@ namespace myseq {
     struct Opaque;
 
     struct State {
-        std::vector<Pattern> patterns;
+    private:
         int selected = -1;
+    public:
+        std::vector<Pattern> patterns;
         bool play_selected = false;
         bool play_note_triggered = false;
 
@@ -524,6 +526,14 @@ namespace myseq {
             auto pattern = get_pattern(id);
             pattern.id = next_unused_id();
             return patterns.emplace_back(pattern);
+        }
+
+        void set_selected_id(int id) {
+            selected = id;
+        }
+
+        [[nodiscard]] int get_selected_id() const {
+            return selected;
         }
 
         Pattern &get_selected_pattern() {

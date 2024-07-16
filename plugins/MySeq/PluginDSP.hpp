@@ -85,7 +85,7 @@ START_NAMESPACE_DISTRHO
 
         bool is_playing_only_selected() {
             return player.active_patterns.size() == 1
-                   && player.active_patterns[0].pattern_id == state.selected
+                   && player.active_patterns[0].pattern_id == state.get_selected_id()
                    && player.active_patterns[0].note == myseq::Note{127, 127};
         }
 

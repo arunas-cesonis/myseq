@@ -1024,7 +1024,7 @@ START_NAMESPACE_DISTRHO
             bool duplicate = false;
 
             if (state.num_patterns() == 0) {
-                state.selected = state.create_pattern().id;
+                state.set_selected_id(state.create_pattern().id);
                 auto &cur = state.get_selected_pattern().cursor;
                 cur.x = 0;
                 cur.y = 127 - 24;
@@ -1076,8 +1076,8 @@ START_NAMESPACE_DISTRHO
                         ImGui::TableNextColumn();
                         int flags = ImGuiSelectableFlags_None;
                         const auto id = pp.id;
-                        if (ImGui::Selectable(std::to_string(id).c_str(), state.selected == id, flags)) {
-                            state.selected = id;
+                        if (ImGui::Selectable(std::to_string(id).c_str(), state.get_selected_id() == id, flags)) {
+                            state.set_selected_id(id);
                             SET_DIRTY_PUSH_UNDO("select pattern")
                         }
 
@@ -1233,15 +1233,15 @@ START_NAMESPACE_DISTRHO
 
             ImGui::End();
             if (create) {
-                state.selected = state.create_pattern().id;
+                state.set_selected_id(state.create_pattern().id);
                 SET_DIRTY_PUSH_UNDO("create");
             }
             if (delete_) {
-                state.delete_pattern(state.selected);
+                state.delete_pattern(state.get_selected_id());
                 SET_DIRTY_PUSH_UNDO("delete");
             }
             if (duplicate) {
-                state.selected = state.duplicate_pattern(state.selected).id;
+                state.set_selected_id(state.duplicate_pattern(state.get_selected_id()).id);
                 SET_DIRTY_PUSH_UNDO("duplicate");
             }
             if (dirty) {

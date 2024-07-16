@@ -49,7 +49,7 @@ namespace myseq {
         }
         auto arr = d["patterns"].GetArray();
         State state;
-        state.selected = d["selected"].GetInt();
+        state.set_selected_id(d["selected"].GetInt());
         state.play_selected = d.HasMember("play_selected") ? d["play_selected"].GetBool() : false;
         state.play_note_triggered = d.HasMember("play_note_triggered") ? d["play_note_triggered"].GetBool() : false;
         for (rapidjson::SizeType i = 0; i < arr.Size(); i++) {
@@ -63,7 +63,7 @@ namespace myseq {
         State state;
         const auto a = state.create_pattern();
         const auto b = state.create_pattern();
-        state.selected = a.id;
+        state.set_selected_id(a.id);
         state.get_pattern(a.id).set_velocity(V2i(0, 1), 100);
         state.get_pattern(b.id).set_velocity(V2i(2, 3), 99);
         state.get_pattern(b.id).set_velocity(V2i(3, 4), 102);
@@ -72,7 +72,7 @@ namespace myseq {
         const auto s = state.to_json_string();
         State state1 = State::from_json_string(s.c_str());
 
-        assert(state.selected == state1.selected);
+        assert(state.get_selected_id() == state1.get_selected_id());
         assert(state.num_patterns() == state1.num_patterns());
         assert(state.get_pattern(a.id).get_velocity(V2i(0, 1)) == state1.get_pattern(a.id).get_velocity(V2i(0, 1)));
         assert(state.get_pattern(b.id).get_velocity(V2i(2, 3)) == state1.get_pattern(b.id).get_velocity(V2i(2, 3)));
