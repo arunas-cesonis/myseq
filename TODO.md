@@ -7,7 +7,7 @@
   note). And return pannig to left button
 - [x] Tied notes
 - [ ] Simpler key range designation UX
-- [ ] Fix undo: pop does not set dirty=true
+- [x] Fix undo: pop does not set dirty=true
 - [ ] Fix undo: dragging & drawing should only push on mouse up
 - [x] Fix tied: does not work on open HH before second snare
 - [x] Apply incoming velocity

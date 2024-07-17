@@ -144,7 +144,7 @@
 
    When this macro is defined, the companion DISTRHO_UI_DEFAULT_HEIGHT macro must be defined as well.
  */
-#define DISTRHO_UI_DEFAULT_WIDTH 1280
+#define DISTRHO_UI_DEFAULT_WIDTH 1920
 
 /**
    Default UI height to use when creating initial and temporary windows.@n
@@ -168,7 +168,7 @@
    By default this is false, and resizing is only allowed under the plugin UI control,@n
    Enabling this options makes it possible for the user to resize the plugin UI at anytime.
    @see UI::setGeometryConstraints(uint, uint, bool, bool)
- */
+*/
 #define DISTRHO_UI_USER_RESIZABLE 1
 
 /**

@@ -5,6 +5,7 @@
 #ifndef MY_PLUGINS_STATS_HPP
 #define MY_PLUGINS_STATS_HPP
 
+#include <vector>
 #include "src/DistrhoDefines.h"
 #include "DistrhoDetails.hpp"
 #include "TimePositionCalc.hpp"

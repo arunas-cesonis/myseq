@@ -94,10 +94,12 @@ START_NAMESPACE_DISTRHO
         ImVec2 drag_started_mpos;
         int count = 0;
         ImVec2 offset;
-        static constexpr int visible_rows = 24;
+        static constexpr int visible_rows = 16;
         static constexpr int visible_columns = 32;
-        float default_cell_width = 100.0f;
-        float default_cell_height = 20.0f;
+        const float default_cell_width = 32.0f;
+        const float default_cell_height = 32.0f;
+        float cell_width = default_cell_width;
+        float cell_height = default_cell_height;
         std::vector<myseq::Cell> clipboard;
 
         bool show_metrics = false;
@@ -429,6 +431,8 @@ START_NAMESPACE_DISTRHO
                 SET_DIRTY_PUSH_UNDO("delete");
             } else if (key_pressed(ImGuiKey_Y)) {
                 grid_copy(p);
+            } else if (key_pressed(ImGuiKey_Z)) {
+                p.move_cursor_to_lowest_note();
             } else if (key_pressed(ImGuiKey_P)) {
                 grid_paste(dirty, p);
             } else if (key_pressed_re(ImGuiKey_K)) {
@@ -766,14 +770,17 @@ START_NAMESPACE_DISTRHO
         }
 
         void show_grid(bool &dirty) {
+
             float grid_width = ImGui::CalcItemWidth();
-            auto cell_width =
-                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
-                                                                                                        (float) visible_columns;
-            auto cell_size = ImVec2(cell_width, default_cell_height);
+//            auto cell_width =
+//                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
+//                                                                                                        (float) visible_columns;
+            // auto cell_size = ImVec2(cell_width, default_cell_height);
+            auto cell_size = ImVec2(cell_width, cell_height);
             auto grid_height = cell_size.y * (float) visible_rows;
             const auto grid_size = ImVec2(grid_width, grid_height);
             auto &p = state.get_selected_pattern();
+            const auto cursor_before = p.cursor;
 
             grid_viewport_mouse_pan();
             grid_viewport_limit_panning(cell_size, grid_size, p);
@@ -791,9 +798,7 @@ START_NAMESPACE_DISTRHO
             auto default_border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
             auto alt_held = ImGui::GetIO().KeyAlt;
 
-            bool cursor_dirty = false;
-            grid_keyboard_interaction(cursor_dirty, p);
-            dirty = dirty || cursor_dirty;
+            grid_keyboard_interaction(dirty, p);
 
             const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
             const auto corner2 = corner + ImVec2(grid_width, grid_height) / cell_size;
@@ -803,7 +808,6 @@ START_NAMESPACE_DISTRHO
             const auto last_visible_col = std::min(p.width - 1, (int) std::floor(corner2.x));
 
             draw_list->PushClipRect(grid_cpos, grid_cpos + ImVec2(grid_width, grid_height), true);
-
 
             int active_column = -1;
             if (aps.has_value()) {
@@ -929,7 +933,7 @@ START_NAMESPACE_DISTRHO
             draw_list->PopClipRect();
             ImGui::Dummy(ImVec2(grid_width, grid_height));
             //
-            if (cursor_dirty) grid_viewport_pan_to_cursor(cell_size, grid_size, p);
+            if (cursor_before != p.cursor) grid_viewport_pan_to_cursor(cell_size, grid_size, p);
             grid_interaction(dirty, p, grid_cpos, grid_size, cell_size, mcell);
         }
 
@@ -998,11 +1002,12 @@ START_NAMESPACE_DISTRHO
             stats = ((MySeqPlugin *) (this->getPluginInstancePointer()))->stats;
 
 
-            int window_flags =
-                    ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-                    | ImGuiWindowFlags_NoScrollWithMouse
-                    | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize
-                    | ImGuiWindowFlags_NoNavInputs;
+            int window_flags = 0;
+            //ImGuiWindowFlags_NoDecoration |
+            //ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
+            //| ImGuiWindowFlags_NoScrollWithMouse
+            //| ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize;
+            //| ImGuiWindowFlags_NoNavInputs;
 
             const ImGuiViewport *viewport = ImGui::GetMainViewport();
             ImGui::SetNextWindowPos(viewport->Pos);
@@ -1047,8 +1052,7 @@ START_NAMESPACE_DISTRHO
                     ImGui::Text("No file loaded");
                 } else {
                     ImGui::Text("%s", state_file->c_str());
-                    if (ImGui::Checkbox("Autosave", &autosave)) {
-                    }
+                    ImGui::Checkbox("Autosave", &autosave);
                 }
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;

@@ -368,14 +368,24 @@ namespace myseq {
         void resize_width(int new_width) {
             auto new_grid = std::valarray<Id>(new_width * height);
             const auto n = std::min(new_grid.size(), grid.size());
-            for (std::size_t i = 0; i < n; i++) {
-                new_grid[i] = grid[i];
-            }
 
             if (new_width < width) {
-                cells.erase(std::remove_if(cells.begin(), cells.end(), [new_width](const auto &cell) -> bool {
-                    return cell.position.x >= new_width;
-                }), cells.end());
+                for (auto it = cells.begin(); it != cells.end();) {
+                    auto &cell = *it;
+                    const int new_length = std::min(new_width - cell.position.x, cell.length);
+                    if (new_length > 0) {
+                        if (new_length < cell.length) {
+                            set_length(cell.position, new_length);
+                        }
+                        ++it;
+                    } else {
+                        it = cells.erase(it);
+                    }
+                };
+            }
+
+            for (std::size_t i = 0; i < n; i++) {
+                new_grid[i] = grid[i];
             }
 
             grid = new_grid;
