@@ -177,7 +177,7 @@ namespace myseq {
                 return false;
             }
 
-            double pattern_elapsed = window_start - ap.start_time;
+            double pattern_elapsed = window_start - ap.start_time * p.get_speed();
             double pattern_duration = tp.step_duration * static_cast<double>(p.width);
             double pattern_time = std::fmod(pattern_elapsed, pattern_duration);
             auto next_column = static_cast<int>(std::ceil(

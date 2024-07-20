@@ -755,13 +755,9 @@ START_NAMESPACE_DISTRHO
         static bool is_black_key(int note) {
             switch (note % 12) {
                 case 1:
-                    return true;
                 case 3:
-                    return true;
                 case 6:
-                    return true;
                 case 8:
-                    return true;
                 case 10:
                     return true;
                 default:
@@ -769,16 +765,36 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        void show_grid2(bool &dirty) {
+            float grid_width = ImGui::CalcItemWidth();
+            auto cell_size = ImVec2(cell_width, cell_height);
+            auto grid_height = cell_size.y * (float) visible_rows;
+            const auto grid_size = ImVec2(grid_width, grid_height);
+            const auto id = ImGui::GetID("grid");
+
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32_BLACK_TRANS);
+            if (ImGui::BeginChildFrame(id, grid_size)) {
+                show_grid(dirty);
+
+                //ImGui::Button("a", ImVec2(10.0, 10.0));
+            }
+            ImGui::PopStyleColor(1);
+            ImGui::EndChildFrame();
+        }
+
         void show_grid(bool &dirty) {
 
-            float grid_width = ImGui::CalcItemWidth();
+            const auto focused = ImGui::IsWindowFocused();
+            auto &frame_padding = ImGui::GetStyle().FramePadding;
+            float grid_width = ImGui::GetContentRegionAvail().x - frame_padding.x * 2.0;
 //            auto cell_width =
 //                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
 //                                                                                                        (float) visible_columns;
             // auto cell_size = ImVec2(cell_width, default_cell_height);
             auto cell_size = ImVec2(cell_width, cell_height);
-            auto grid_height = cell_size.y * (float) visible_rows;
-            const auto grid_size = ImVec2(grid_width, grid_height);
+            float fh = ImGui::GetFrameHeight();
+            auto grid_height = cell_size.y * (float) visible_rows - frame_padding.y * 2.0;
+            const auto grid_size = ImVec2(grid_width, grid_height) - ImGui::GetStyle().FramePadding * 2.0;
             auto &p = state.get_selected_pattern();
             const auto cursor_before = p.cursor;
 
@@ -790,7 +806,7 @@ START_NAMESPACE_DISTRHO
             ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
             const auto active_cell = ImColor(0x7a, 0xaa, 0xef);
             const auto inactive_cell = ImColor(0x25, 0x25, 0x25);
-            auto grid_cpos = ImGui::GetCursorPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
+            auto grid_cpos = ImGui::GetCursorScreenPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
 
             auto mpos = ImGui::GetMousePos();
             auto mcell = calc_cell(p, grid_cpos, mpos, grid_size, cell_size);
@@ -798,7 +814,10 @@ START_NAMESPACE_DISTRHO
             auto default_border_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Border)).operator ImU32();
             auto alt_held = ImGui::GetIO().KeyAlt;
 
-            grid_keyboard_interaction(dirty, p);
+            // ignore keyboard unless we are focused
+            if (focused) {
+                grid_keyboard_interaction(dirty, p);
+            }
 
             const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
             const auto corner2 = corner + ImVec2(grid_width, grid_height) / cell_size;
@@ -856,7 +875,7 @@ START_NAMESPACE_DISTRHO
 
                     auto note = myseq::utils::row_index_to_midi_note(loop_cell.y);
                     //auto c = is_hovered && interaction == Interaction::None ? hovered_color : cell_color;
-                    // auto quarter_fade = is_black_key(note) ? 0.8f : 1.f;
+                    auto quarter_fade = is_black_key(note) ? 0.8f : 1.f;
                     if (interaction == Interaction::MovingCells) {
                         if (moving_cells_set.end() != moving_cells_set.find(loop_cell - previous_move_offset)) {
                             //auto tmp = cell_color1.Value.y;
@@ -1002,7 +1021,7 @@ START_NAMESPACE_DISTRHO
             stats = ((MySeqPlugin *) (this->getPluginInstancePointer()))->stats;
 
 
-            int window_flags = 0;
+            int window_flags = ImGuiWindowFlags_NoNavFocus;
             //ImGuiWindowFlags_NoDecoration |
             //ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
             //| ImGuiWindowFlags_NoScrollWithMouse
@@ -1032,7 +1051,7 @@ START_NAMESPACE_DISTRHO
 
                 ImGui::SetWindowFontScale(1.0);
 
-                show_grid(dirty);
+                show_grid2(dirty);
 
                 ImGui::SameLine();
                 ImGui::BeginGroup();
@@ -1118,6 +1137,16 @@ START_NAMESPACE_DISTRHO
                         }
                     });
                     ImGui::EndTable();
+                }
+                {
+                    auto &p = state.get_selected_pattern();
+                    float pattern_speed_value = p.get_speed();
+                    ImGui::Text("%f", ImGui::CalcItemWidth());
+                    ImGui::Text("%f", pattern_speed_value);
+                    if (ImGui::SliderFloat("Speed", &pattern_speed_value, 0.0, 2.0, "%f", ImGuiSliderFlags_None)) {
+                        p.set_speed(pattern_speed_value);
+                        SET_DIRTY_PUSH_UNDO("speed");
+                    }
                 }
                 if (ImGui::Button("Add")) {
                     create = true;

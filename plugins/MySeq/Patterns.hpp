@@ -143,6 +143,7 @@ namespace myseq {
     class Pattern {
         GenArray<Cell> cells;
         std::valarray<Id> grid;
+        float speed = 1.0;
 
         [[nodiscard]] V2i index_to_coords(int index) const {
             assert(index < width * height);
@@ -287,6 +288,14 @@ namespace myseq {
 
         [[nodiscard]] bool is_active(const V2i &v) const {
             return exists(v);
+        }
+
+        void set_speed(float new_speed) {
+            this->speed = new_speed;
+        }
+
+        [[nodiscard]] float get_speed() const {
+            return speed;
         }
 
         void set_active(const V2i &v, bool active) {
