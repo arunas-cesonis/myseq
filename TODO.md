@@ -1,3 +1,6 @@
+- [ ] Crash: when clicking on extended part of tied note
+- [ ] Save filename to state so that it is persistet across GUI sessions
+- [ ] Adjust velocity of a row
 - [x] Tied notes play multiple notes
 - [x] After pasting, update the selection to be the pasted cells
 - [x] Paste to same pitch
