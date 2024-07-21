@@ -99,11 +99,11 @@ START_NAMESPACE_DISTRHO
         const float default_cell_width = 32.0f;
         const float default_cell_height = 32.0f;
         float cell_width = default_cell_width;
+        String filename = String("");
         float cell_height = default_cell_height;
         std::vector<myseq::Cell> clipboard;
 
         bool show_metrics = false;
-        std::optional<std::string> state_file;
         bool autosave = true;
         bool file_browser_saving = false;
 
@@ -130,7 +130,7 @@ START_NAMESPACE_DISTRHO
 
             const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE");
             if (nullptr != myseq_load_json_file) {
-                state_file = std::string(myseq_load_json_file);
+                filename = String(myseq_load_json_file);
                 read_state_file();
             } else {
                 state = myseq::State();
@@ -164,7 +164,7 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginUI: setState key=pattern value=%s", s.c_str());
             setState("pattern", s.c_str());
             if (autosave) {
-                state.write_to_file(state_file->c_str());
+                state.write_to_file(get_state_file());
             }
 // #ifdef DEBUG
             {
@@ -234,6 +234,23 @@ START_NAMESPACE_DISTRHO
                 return {mcol, mrow};
             } else {
                 return {-1, -1};
+            }
+        }
+
+        void set_state_file(const char *value) {
+            if (value == nullptr) {
+                filename = String("");
+            } else {
+                filename = String(value);
+            }
+            setState("filename", filename);
+        }
+
+        [[nodiscard]] const char *get_state_file() const {
+            if (filename == String("")) {
+                return nullptr;
+            } else {
+                (const char *) filename;
             }
         }
 
@@ -984,28 +1001,27 @@ START_NAMESPACE_DISTRHO
         }
 
         void read_state_file() {
-            const auto s = read_file(state_file->c_str());
+            const auto s = read_file(filename);
             if (s.has_value()) {
-                d_debug("read %lu bytes from %s", s->size(), state_file->c_str());
+                d_debug("read %lu bytes from %s", s->size(), get_state_file());
                 state = myseq::State::from_json_string(s->c_str());
                 publish();
             } else {
-                d_debug("could not read %s", state_file->c_str());
+                d_debug("could not read %s", get_state_file());
             }
         }
 
         void write_state_file() {
             const auto s = state.to_json_string();
             const auto cs = s.c_str();
-            d_debug("writing %lu bytes to %s", s.size(), state_file->c_str());
-            write_file(state_file->c_str(), cs, s.size());
+            d_debug("writing %lu bytes to %s", s.size(), get_state_file());
+            write_file(filename, cs, s.size());
         }
 
-        void uiFileBrowserSelected(const char *filename) override {
-            if (nullptr == filename) {
+        void uiFileBrowserSelected(const char *new_filename) override {
+            if (nullptr == new_filename)
                 return;
-            }
-            state_file = filename;
+            set_state_file(new_filename);
             if (file_browser_saving) {
                 write_state_file();
             } else {
@@ -1067,10 +1083,10 @@ START_NAMESPACE_DISTRHO
                     file_browser_saving = true;
                     this->openFileBrowser(options);
                 }
-                if (!state_file.has_value()) {
+                if (filename == String("")) {
                     ImGui::Text("No file loaded");
                 } else {
-                    ImGui::Text("%s", state_file->c_str());
+                    ImGui::Text("%s", (const char *) filename);
                     ImGui::Checkbox("Autosave", &autosave);
                 }
 
@@ -1279,6 +1295,8 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginUI: stateChanged key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
+            } else if (std::strcmp(key, "filename") == 0) {
+                filename = value;
             }
         }
         // ----------------------------------------------------------------------------------------------------------------

@@ -28,14 +28,14 @@ START_NAMESPACE_DISTRHO
          */
         myseq::Player player;
         myseq::State state;
-        std::string instance_id = "";
+        String filename = String("");
         TimePosition last_time_position;
         int iteration = 0;
 
         myseq::Stats stats;
 
         MySeqPlugin()
-                : Plugin(0, 0, 1) {
+                : Plugin(0, 0, 2) {
             myseq::Test::test_player_run();
         }
 
@@ -173,15 +173,19 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginDSP: setState: key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
+            } else if (std::strcmp(key, "filename") == 0) {
+                filename = value;
             } else {
                 assert(false);
             }
         }
 
         String getState(const char *key) const override {
-            d_debug("PluginDSP: getState: key=%s instance_id=%s", key, instance_id.c_str());
+            d_debug("PluginDSP: getState: key=%s", key);
             if (std::strcmp(key, "pattern") == 0) {
                 return String(state.to_json_string().c_str());
+            } else if (std::strcmp(key, "filename") == 0) {
+                return filename;
             } else {
                 assert(false);
             }
@@ -199,13 +203,18 @@ START_NAMESPACE_DISTRHO
             //   state.key = "ticks";
             //    state.defaultValue = "0";
             d_debug("PluginDSP: initState index=%d", index);
-            DISTRHO_SAFE_ASSERT(index <= 0);
+            DISTRHO_SAFE_ASSERT(index <= 1);
             switch (index) {
                 case 0:
                     st.key = "pattern";
                     st.label = "pattern";
                     state = myseq::State();
                     st.defaultValue = String(state.to_json_string().c_str());
+                    break;
+                case 1:
+                    st.key = "filename";
+                    st.label = "filename";
+                    st.defaultValue = String("");
                     break;
             }
         }
