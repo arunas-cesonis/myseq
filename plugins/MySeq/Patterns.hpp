@@ -241,8 +241,9 @@ namespace myseq {
 
         void clear_cell(const V2i &coords) {
             if (exists(coords)) {
+                const auto cell_id = grid[coords_to_index(coords)];
                 set_length(coords, 1);
-                cells.remove(grid[coords_to_index(coords)]);
+                cells.remove(cell_id);
             }
         }
 

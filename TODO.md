@@ -1,4 +1,4 @@
-- [ ] Crash: when clicking on extended part of tied note
+- [x] Crash: when clicking on extended part of tied note
 - [ ] Save filename to state so that it is persistet across GUI sessions
 - [ ] Adjust velocity of a row
 - [x] Tied notes play multiple notes
