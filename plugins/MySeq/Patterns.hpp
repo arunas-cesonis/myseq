@@ -41,6 +41,41 @@ namespace myseq {
         }
     }
 
+    template<typename T>
+    struct V2 {
+        T x;
+        T y;
+
+        V2(T x, T y) : x(x), y(y) {}
+
+        V2() : V2(0, 0) {}
+
+        bool operator==(const V2 &other) const {
+            return x == other.x && y == other.y;
+        }
+
+        bool operator!=(const V2 &other) const {
+            return x != other.x || y != other.y;
+        }
+
+        V2 operator-(const V2 &other) const {
+            return {x - other.x, y - other.y};
+        }
+
+        void operator-=(const V2 &other) {
+            x -= other.x;
+            y -= other.y;
+        }
+
+        V2 operator+(const V2 &other) const {
+            return {x + other.x, y + other.y};
+        }
+    };
+
+    typedef V2<int> V2i;
+    typedef V2<float> V2f;
+
+    /*
     struct V2i {
         int x;
         int y;
@@ -70,6 +105,7 @@ namespace myseq {
             return {x + other.x, y + other.y};
         }
     };
+     */
 
     struct V2iHash {
         std::size_t operator()(const V2i &v) const {
@@ -144,6 +180,7 @@ namespace myseq {
         GenArray<Cell> cells;
         std::valarray<Id> grid;
         float speed = 1.0;
+        V2f viewport; // UI view offset in percentage
 
         [[nodiscard]] V2i index_to_coords(int index) const {
             assert(index < width * height);
@@ -289,6 +326,14 @@ namespace myseq {
 
         [[nodiscard]] bool is_active(const V2i &v) const {
             return exists(v);
+        }
+
+        void set_viewport(const V2f &new_viewport) {
+            this->viewport = new_viewport;
+        }
+
+        [[nodiscard]] const V2f &get_viewport() const {
+            return viewport;
         }
 
         void set_speed(float new_speed) {
@@ -580,17 +625,20 @@ namespace myseq {
         static State from_json_string(const char *s);
 
         void write_to_file(const char *state_file) const {
-            d_debug("write_file %s", state_file);
             const auto value = to_json_string();
+            d_debug("write_file %s %lu bytes", state_file, value.length());
             write_file(state_file, value.c_str(), value.size());
         }
 
         static std::optional<State> read_from_file(const char *state_file) {
-            d_debug("read_file %s", state_file);
             const auto content = read_file(state_file);
             if (content.has_value()) {
+                d_debug("read_file %s %lu", state_file, content->length());
                 return {myseq::State::from_json_string(content.value().c_str())};
+            } else {
+                d_debug("read_file %s failed", state_file);
             }
+
             return {};
         }
 

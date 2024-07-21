@@ -11,6 +11,17 @@
 
 namespace myseq {
 
+    [[nodiscard]] V2f v2f_from_json(const rapidjson::Value &value) {
+        return {value["x"].GetFloat(), value["y"].GetFloat()};
+    }
+
+    [[nodiscard]] rapidjson::Value
+    v2f_to_json(const V2f &v, rapidjson::Document::AllocatorType &allocator) {
+        rapidjson::Value pobj(rapidjson::kObjectType);
+        pobj.AddMember("x", v.x, allocator)
+                .AddMember("y", v.y, allocator);
+        return pobj;
+    }
 
     Pattern pattern_from_json(const rapidjson::Value &value) {
         auto id = value["id"].GetInt();
@@ -20,12 +31,15 @@ namespace myseq {
         auto last_note = value["last_note"].GetInt();
         auto speed = value.HasMember("speed") ? value["speed"].GetFloat() : 1.0;
         auto carr = value["cells"].GetArray();
+        V2f viewport = value.HasMember("viewport") ?
+                       v2f_from_json(value["viewport"]) : V2f(0.0, 0.0);
         int cursor_x = value.HasMember("cursor_x") ?
                        value["cursor_x"].GetInt() : 0;
         int cursor_y = value.HasMember("cursor_y") ?
                        value["cursor_y"].GetInt() : 0;
         Pattern p(id, width, height, first_note, last_note, V2i(cursor_x, cursor_y));
         p.set_speed((float) speed);
+        p.set_viewport(viewport);
         for (int i = 0; i < (int) carr.Size(); i++) {
             auto cobj = carr[i].GetObject();
             int x = cobj["x"].GetInt();
@@ -91,7 +105,8 @@ namespace myseq {
                 .AddMember("last_note", pattern.last_note, allocator)
                 .AddMember("cursor_x", pattern.cursor.x, allocator)
                 .AddMember("cursor_y", pattern.cursor.y, allocator)
-                .AddMember("speed", pattern.get_speed(), allocator);
+                .AddMember("speed", pattern.get_speed(), allocator)
+                .AddMember("viewport", v2f_to_json(pattern.get_viewport(), allocator), allocator);
         //d.GetObject().AddMember("data", height, d.GetAllocator());
         rapidjson::Value data_arr(rapidjson::kArrayType);
         pattern.each_cell([&](const Cell &cell) {

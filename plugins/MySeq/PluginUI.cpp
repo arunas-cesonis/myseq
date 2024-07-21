@@ -18,7 +18,9 @@ START_NAMESPACE_DISTRHO
 
 // --------------------------------------------------------------------------------------------------------------------
 
+
     using myseq::V2i;
+
 
     static const char *NOTES[] =
             {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", nullptr,};
@@ -99,13 +101,13 @@ START_NAMESPACE_DISTRHO
         const float default_cell_width = 32.0f;
         const float default_cell_height = 32.0f;
         float cell_width = default_cell_width;
-        String filename = String("");
         float cell_height = default_cell_height;
         std::vector<myseq::Cell> clipboard;
 
         bool show_metrics = false;
         bool autosave = true;
         bool file_browser_saving = false;
+        std::optional<std::string> filename;
 
         std::optional<myseq::Stats> stats;
         myseq::State state;
@@ -130,7 +132,7 @@ START_NAMESPACE_DISTRHO
 
             const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE");
             if (nullptr != myseq_load_json_file) {
-                filename = String(myseq_load_json_file);
+                filename = {std::string(myseq_load_json_file)};
                 read_state_file();
             } else {
                 state = myseq::State();
@@ -138,11 +140,7 @@ START_NAMESPACE_DISTRHO
 
 
             myseq::test_serialize();
-            // init_shm();
-
-            // offset = ImVec2(0.0f, -default_cell_height * (float) (visible_rows + 72));
             offset = ImVec2(0.0f, 500000.0f);
-
             if (d_isEqual(scaleFactor, 1.0)) {
                 setGeometryConstraints(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT);
             } else {
@@ -164,7 +162,7 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginUI: setState key=pattern value=%s", s.c_str());
             setState("pattern", s.c_str());
             if (autosave) {
-                state.write_to_file(get_state_file());
+                state.write_to_file(filename->c_str());
             }
 // #ifdef DEBUG
             {
@@ -236,24 +234,6 @@ START_NAMESPACE_DISTRHO
                 return {-1, -1};
             }
         }
-
-        void set_state_file(const char *value) {
-            if (value == nullptr) {
-                filename = String("");
-            } else {
-                filename = String(value);
-            }
-            setState("filename", filename);
-        }
-
-        [[nodiscard]] const char *get_state_file() const {
-            if (filename == String("")) {
-                return nullptr;
-            } else {
-                (const char *) filename;
-            }
-        }
-
 
         static int note_select(int note) {
             int selected_octave = note / 12;
@@ -498,6 +478,10 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        static bool shift_held() {
+            return (ImGui::GetIO().KeyShift);
+        }
+
         static bool cmd_held() {
             return 0 != (ImGui::GetIO().KeyMods & ImGuiMod_Super);
         }
@@ -579,13 +563,11 @@ START_NAMESPACE_DISTRHO
 
                 case Interaction::AdjustingVelocity: {
                     if (ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
-                        if (cursor_hovers_grid) {
-                            auto delta_y = mpos.y - drag_started_mpos.y;
-                            auto new_vel = (uint8_t) clamp(
-                                    (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
-                            p.set_velocity(drag_started_cell, new_vel, "AdjustingVelocity A");
-                            SET_DIRTY();
-                        }
+                        auto delta_y = mpos.y - drag_started_mpos.y;
+                        auto new_vel = (uint8_t) clamp(
+                                (int) std::round((float) drag_started_velocity - (float) delta_y), 0, 127);
+                        p.set_velocity(drag_started_cell, new_vel, "AdjustingVelocity A");
+                        SET_DIRTY();
                     } else {
                         interaction = Interaction::None;
                         PUSH_UNDO("AdjustingVelocity");
@@ -690,46 +672,70 @@ START_NAMESPACE_DISTRHO
                         }
                     } else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
                         if (cursor_hovers_grid) {
-                            if (ImGui::IsKeyDown(ImGuiKey_T)) {
-                                interaction = Interaction::DrawingLongCell;
-                                // state.get_selected_pattern().set_velocity(mcell, 127,
-                                //                                         "ImGuiKey_T init DrawingLongCell");
-                                drag_started_mpos = mpos;
-                                drag_started_cell = mcell;
-                            } else if (cmd_held()) {
-                                if (p.num_selected() > 0) {
-                                    drag_started_velocity_vec.clear();
-                                    p.each_selected_cell([&](const myseq::Cell &c) {
-                                        drag_started_velocity_vec.push_back({c.position, c.velocity});
-                                    });
-                                    interaction = Interaction::AdjustingVelocitySelected;
-                                } else {
-
-                                    drag_started_velocity = p.get_velocity(mcell);
-                                    drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
-                                    interaction = Interaction::AdjustingVelocity;
-                                }
-                                drag_started_mpos = mpos;
-                                drag_started_cell = mcell;
-                            } else if (p.get_selected(mcell)) {
-                                drag_started_mpos = mpos;
-                                drag_started_cell = mcell;
-                                previous_move_offset = V2i(0, 0);
-                                moving_cells_set.clear();
-                                p.each_selected_cell([&](const myseq::Cell &c) {
-                                    moving_cells_set.insert(c.position);
-                                });
-                                interaction = Interaction::MovingCells;
-                            } else {
-                                interaction = Interaction::DrawingCells;
-                                drag_started_active = p.is_active(mcell);
-                                p.set_active(mcell, !drag_started_active);
-                                p.deselect_all();
-                                SET_DIRTY();
-                            }
+                            start_left_button_action(dirty, p, mcell, mpos);
                         }
                     }
             }
+        }
+
+        void start_left_button_action(bool &dirty, myseq::Pattern &p, const V2i &mcell, const ImVec2 &mpos) {
+            if (shift_held()) {
+                start_adjusting_velocity(p, mcell, mpos);
+                return;
+            }
+            if (ImGui::IsKeyDown(ImGuiKey_T)) {
+                start_drawing_long_cell(mcell, mpos);
+                return;
+            }
+
+            if (p.get_selected(mcell)) {
+                start_moving_cells(p, mcell, mpos);
+            } else {
+                start_drawing_cells(dirty, p, mcell, mpos);
+            }
+        }
+
+        void start_drawing_cells(bool &dirty, myseq::Pattern &p, const V2i &mcell, const ImVec2 &mpos) {
+            interaction = Interaction::DrawingCells;
+            drag_started_active = p.is_active(mcell);
+            p.set_active(mcell, !drag_started_active);
+            p.deselect_all();
+            SET_DIRTY();
+        }
+
+        void start_moving_cells(myseq::Pattern &p, const V2i &mcell, const ImVec2 &mpos) {
+            drag_started_mpos = mpos;
+            drag_started_cell = mcell;
+            previous_move_offset = V2i(0, 0);
+            moving_cells_set.clear();
+            p.each_selected_cell([&](const myseq::Cell &c) {
+                moving_cells_set.insert(c.position);
+            });
+            interaction = Interaction::MovingCells;
+        }
+
+        void start_drawing_long_cell(const V2i &mcell, const ImVec2 &mpos) {
+            interaction = Interaction::DrawingLongCell;
+            drag_started_mpos = mpos;
+            drag_started_cell = mcell;
+        }
+
+        void start_adjusting_velocity(myseq::Pattern &p, const V2i &mcell, const ImVec2 &mpos) {
+            if (p.num_selected() > 0) {
+                drag_started_velocity_vec.clear();
+                p.each_selected_cell([&](const myseq::Cell &c) {
+                    drag_started_velocity_vec.push_back({c.position, c.velocity});
+                });
+                interaction = Interaction::AdjustingVelocitySelected;
+            } else {
+
+                drag_started_velocity = p.get_velocity(mcell);
+                drag_started_velocity = drag_started_velocity == 0 ? 127 : drag_started_velocity;
+                interaction = Interaction::AdjustingVelocity;
+            }
+            drag_started_mpos = mpos;
+            drag_started_cell = mcell;
+
         }
 
         void grid_viewport_pan_to_cursor(const ImVec2 &cell_size, const ImVec2 &grid_size, myseq::Pattern &p) {
@@ -842,6 +848,8 @@ START_NAMESPACE_DISTRHO
             const auto last_visible_row = std::min(p.height - 1, (int) std::floor(corner2.y));
             const auto first_visible_col = std::max(0, (int) std::floor(corner.x));
             const auto last_visible_col = std::min(p.width - 1, (int) std::floor(corner2.x));
+
+            p.set_viewport(myseq::V2f(corner.x, corner.y));
 
             draw_list->PushClipRect(grid_cpos, grid_cpos + ImVec2(grid_width, grid_height), true);
 
@@ -1001,27 +1009,26 @@ START_NAMESPACE_DISTRHO
         }
 
         void read_state_file() {
-            const auto s = read_file(filename);
-            if (s.has_value()) {
-                d_debug("read %lu bytes from %s", s->size(), get_state_file());
-                state = myseq::State::from_json_string(s->c_str());
+            const auto new_state = myseq::State::read_from_file(filename->c_str());
+            if (new_state.has_value()) {
+                state = new_state.value();
                 publish();
             } else {
-                d_debug("could not read %s", get_state_file());
+                d_debug("could not read %s", filename->c_str());
             }
         }
 
         void write_state_file() {
             const auto s = state.to_json_string();
             const auto cs = s.c_str();
-            d_debug("writing %lu bytes to %s", s.size(), get_state_file());
-            write_file(filename, cs, s.size());
+            d_debug("writing %lu bytes to %s", s.size(), filename->c_str());
+            write_file(filename->c_str(), cs, s.size());
         }
 
         void uiFileBrowserSelected(const char *new_filename) override {
             if (nullptr == new_filename)
                 return;
-            set_state_file(new_filename);
+            filename = {std::string(new_filename)};
             if (file_browser_saving) {
                 write_state_file();
             } else {
@@ -1083,12 +1090,8 @@ START_NAMESPACE_DISTRHO
                     file_browser_saving = true;
                     this->openFileBrowser(options);
                 }
-                if (filename == String("")) {
-                    ImGui::Text("No file loaded");
-                } else {
-                    ImGui::Text("%s", (const char *) filename);
-                    ImGui::Checkbox("Autosave", &autosave);
-                }
+                ImGui::Text("%s", filename.has_value() ? (*filename).c_str() : "null");
+                ImGui::Checkbox("Autosave", &autosave);
 
                 int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
                 if (ImGui::BeginTable("##patterns_table", 5, patterns_table_flags, ImVec2(0, 200))) {
@@ -1292,7 +1295,7 @@ START_NAMESPACE_DISTRHO
         }
 
         void stateChanged(const char *key, const char *value) override {
-            d_debug("PluginUI: stateChanged key=%s value=%s", key, value);
+            //d_debug("PluginUI: stateChanged key=%s value=%s", key, value);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "filename") == 0) {
