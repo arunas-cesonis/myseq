@@ -1098,8 +1098,7 @@ START_NAMESPACE_DISTRHO
                     ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
                     ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
                     ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 2);
-                    ImGui::TableSetupColumn("last note", ImGuiTableColumnFlags_None, 0.0, 3);
-                    ImGui::TableSetupColumn("playing", ImGuiTableColumnFlags_None, 0.0, 3);
+                    ImGui::TableSetupColumn("range", ImGuiTableColumnFlags_None, 0.0, 3);
                     ImGui::TableHeadersRow();
                     state.each_pattern([&](const myseq::Pattern &pp) {
                         ImGui::TableNextRow();
@@ -1125,45 +1124,22 @@ START_NAMESPACE_DISTRHO
                         const auto first_note = note_select(tmp.first_note);
                         if (tmp.first_note != first_note) {
                             tmp.first_note = first_note;
+                            tmp.last_note = tmp.first_note + tmp.width;
                             SET_DIRTY_PUSH_UNDO("first_note")
                         }
                         ImGui::PopID();
-
-                        // last_note
-                        ImGui::TableNextColumn();
-                        ImGui::PushID(2);
-                        const auto last_note = note_select(tmp.last_note);
-                        if (tmp.last_note != last_note) {
-                            tmp.last_note = last_note;
-                            SET_DIRTY_PUSH_UNDO("last_note")
-                        }
-                        ImGui::PopID();
                         ImGui::PopID();
 
                         ImGui::TableNextColumn();
-                        if (stats.has_value()) {
-                            bool found = false;
-                            for (const auto &aps: stats->active_patterns) {
-                                if (aps.pattern_id == id) {
-                                    ImGui::Text("%f / %f", aps.duration, aps.time);
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            if (!found) {
-                                ImGui::Text("0");
-                            }
-                        }
+                        ImGui::Text("%s - %s", ALL_NOTES[tmp.first_note], ALL_NOTES[tmp.last_note]);
                     });
                     ImGui::EndTable();
                 }
                 {
                     auto &p = state.get_selected_pattern();
                     float pattern_speed_value = p.get_speed();
-                    ImGui::Text("%f", ImGui::CalcItemWidth());
-                    ImGui::Text("%f", pattern_speed_value);
                     if (ImGui::SliderFloat("Speed", &pattern_speed_value, 0.0, 2.0, "%f", ImGuiSliderFlags_None)) {
-                        p.set_speed(pattern_speed_value);
+                        p.set_speed(pattern_speed_valuet);
                         SET_DIRTY_PUSH_UNDO("speed");
                     }
                 }
