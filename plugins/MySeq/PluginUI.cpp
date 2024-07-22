@@ -103,6 +103,7 @@ START_NAMESPACE_DISTRHO
         float cell_width = default_cell_width;
         float cell_height = default_cell_height;
         std::vector<myseq::Cell> clipboard;
+        int last_selected_pattern_id = -1;
 
         bool show_metrics = false;
         bool autosave = true;
@@ -500,6 +501,10 @@ START_NAMESPACE_DISTRHO
             return ImGui::IsKeyDown(key);
         }
 
+        static ImVec2 to_imvec2(const myseq::V2f &v) {
+            return ImVec2(v.x, v.y);
+        }
+
         void
         grid_interaction(bool &dirty, myseq::Pattern &p, const ImVec2 &grid_cpos, const ImVec2 &grid_size,
                          const ImVec2 &cell_size, const V2i &mcell
@@ -842,6 +847,11 @@ START_NAMESPACE_DISTRHO
                 grid_keyboard_interaction(dirty, p);
             }
 
+            if (last_selected_pattern_id != p.get_id()) {
+                offset = (ImVec2(0.0, 0.0) - to_imvec2(p.get_viewport())) * cell_size;
+                last_selected_pattern_id = p.get_id();
+            }
+
             const auto corner = (ImVec2(0.0, 0.0) - offset) / cell_size;
             const auto corner2 = corner + ImVec2(grid_width, grid_height) / cell_size;
             const auto first_visible_row = (int) std::floor(corner.y);
@@ -1139,7 +1149,7 @@ START_NAMESPACE_DISTRHO
                     auto &p = state.get_selected_pattern();
                     float pattern_speed_value = p.get_speed();
                     if (ImGui::SliderFloat("Speed", &pattern_speed_value, 0.0, 2.0, "%f", ImGuiSliderFlags_None)) {
-                        p.set_speed(pattern_speed_valuet);
+                        p.set_speed(pattern_speed_value);
                         SET_DIRTY_PUSH_UNDO("speed");
                     }
                 }
