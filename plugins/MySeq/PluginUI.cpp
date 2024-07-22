@@ -794,9 +794,9 @@ START_NAMESPACE_DISTRHO
         }
 
         void show_grid2(bool &dirty) {
-            float grid_width = ImGui::CalcItemWidth();
+            float grid_width = ImGui::GetContentRegionAvail().x;
             auto cell_size = ImVec2(cell_width, cell_height);
-            auto grid_height = cell_size.y * (float) visible_rows;
+            auto grid_height = ImGui::GetContentRegionAvail().y; //cell_size.y * (float) visible_rows;
             const auto grid_size = ImVec2(grid_width, grid_height);
             const auto id = ImGui::GetID("grid");
 
@@ -814,14 +814,14 @@ START_NAMESPACE_DISTRHO
 
             const auto focused = ImGui::IsWindowFocused();
             auto &frame_padding = ImGui::GetStyle().FramePadding;
-            float grid_width = ImGui::GetContentRegionAvail().x - frame_padding.x * 2.0;
+            float grid_width = ImGui::GetContentRegionAvail().x;
 //            auto cell_width =
 //                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
 //                                                                                                        (float) visible_columns;
             // auto cell_size = ImVec2(cell_width, default_cell_height);
             auto cell_size = ImVec2(cell_width, cell_height);
             float fh = ImGui::GetFrameHeight();
-            auto grid_height = cell_size.y * (float) visible_rows - frame_padding.y * 2.0;
+            auto grid_height = ImGui::GetContentRegionAvail().y;
             const auto grid_size = ImVec2(grid_width, grid_height) - ImGui::GetStyle().FramePadding * 2.0;
             auto &p = state.get_selected_pattern();
             const auto cursor_before = p.cursor;
@@ -985,7 +985,7 @@ START_NAMESPACE_DISTRHO
             }
 
             draw_list->PopClipRect();
-            ImGui::Dummy(ImVec2(grid_width, grid_height));
+            ImGui::InvisibleButton("##grid_button", ImVec2(grid_width, grid_height));
             //
             if (cursor_before != p.cursor) grid_viewport_pan_to_cursor(cell_size, grid_size, p);
             grid_interaction(dirty, p, grid_cpos, grid_size, cell_size, mcell);
@@ -1047,6 +1047,27 @@ START_NAMESPACE_DISTRHO
         }
 
         void onImGuiDisplay() override {
+            bool dirty = false;
+            int window_flags = //ImGuiWindowFlags_NoDecoration |
+                    // ImGuiWindowFlags_NoMove |
+                    //ImGuiWindowFlags_NoSavedSettings |
+                    // ImGuiWindowFlags_NoScrollWithMouse |
+                    // ImGuiWindowFlags_NoBringToFrontOnFocus |
+                    ImGuiWindowFlags_NoResize;
+            ImGui::SetNextWindowSize(
+                    ImVec2(visible_columns * default_cell_width + 4.0 * ImGui::GetStyle().ItemSpacing.x, 640));
+            general_keyboard_interaction(dirty);
+            if (ImGui::Begin("grid_window", nullptr, window_flags)) {
+                ImGui::Text("focused=%d", ImGui::IsWindowFocused());
+                show_grid(dirty);
+            }
+            ImGui::End();
+            if (dirty) {
+                publish();
+            }
+        }
+
+        void onImGuiDisplay2() {
             // ImGui::SetNextWindowPos(ImVec2(0, 0));
             //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
 
@@ -1084,7 +1105,9 @@ START_NAMESPACE_DISTRHO
 
                 ImGui::SetWindowFontScale(1.0);
 
+                ImGui::BeginGroup();
                 show_grid2(dirty);
+                ImGui::EndGroup();
 
                 ImGui::SameLine();
                 ImGui::BeginGroup();
