@@ -1046,254 +1046,140 @@ START_NAMESPACE_DISTRHO
             }
         }
 
-        void onImGuiDisplay() override {
-            bool dirty = false;
-            int window_flags = //ImGuiWindowFlags_NoDecoration |
-                    // ImGuiWindowFlags_NoMove |
-                    //ImGuiWindowFlags_NoSavedSettings |
-                    // ImGuiWindowFlags_NoScrollWithMouse |
-                    // ImGuiWindowFlags_NoBringToFrontOnFocus |
-                    ImGuiWindowFlags_NoResize;
-            ImGui::SetNextWindowSize(
-                    ImVec2(visible_columns * default_cell_width + 4.0 * ImGui::GetStyle().ItemSpacing.x, 640));
-            general_keyboard_interaction(dirty);
-            if (ImGui::Begin("grid_window", nullptr, window_flags)) {
-                ImGui::Text("focused=%d", ImGui::IsWindowFocused());
-                show_grid(dirty);
-            }
-            ImGui::End();
-            if (dirty) {
-                publish();
+        static float right_of_current_window() {
+            return ImGui::GetWindowWidth() + ImGui::GetWindowPos().x;
+        }
+
+        static float left_of_current_window() {
+            return ImGui::GetWindowPos().x;
+        }
+
+        static float bottom_of_current_window() {
+            return ImGui::GetWindowHeight() + ImGui::GetWindowPos().y;
+        }
+
+        static float top_of_current_window() {
+            return ImGui::GetWindowPos().y;
+        }
+
+        void show_patterns_table(bool &dirty) {
+            int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
+            if (ImGui::BeginTable("##patterns_table", 5, patterns_table_flags, ImVec2(0, 200))) {
+                ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
+                ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
+                ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 2);
+                ImGui::TableSetupColumn("range", ImGuiTableColumnFlags_None, 0.0, 3);
+                ImGui::TableHeadersRow();
+                state.each_pattern([&](const myseq::Pattern &pp) {
+                    ImGui::TableNextRow();
+
+                    // id
+                    ImGui::TableNextColumn();
+                    int flags = ImGuiSelectableFlags_None;
+                    const auto id = pp.id;
+                    if (ImGui::Selectable(std::to_string(id).c_str(), state.get_selected_id() == id, flags)) {
+                        state.set_selected_id(id);
+                        SET_DIRTY_PUSH_UNDO("select pattern")
+                    }
+
+                    // length
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s", std::to_string(pp.width).c_str());
+
+                    // first_note
+                    ImGui::TableNextColumn();
+                    ImGui::PushID(id);
+                    myseq::Pattern &tmp = state.get_pattern(id);
+                    ImGui::PushID(1);
+                    const auto first_note = note_select(tmp.first_note);
+                    if (tmp.first_note != first_note) {
+                        tmp.first_note = first_note;
+                        tmp.last_note = tmp.first_note + tmp.width;
+                        SET_DIRTY_PUSH_UNDO("first_note")
+                    }
+                    ImGui::PopID();
+                    ImGui::PopID();
+
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%s - %s", ALL_NOTES[tmp.first_note], ALL_NOTES[tmp.last_note]);
+                });
+                ImGui::EndTable();
             }
         }
 
-        void onImGuiDisplay2() {
-            // ImGui::SetNextWindowPos(ImVec2(0, 0));
-            //ImGui::SetNextWindowSize(ImVec2(static_cast<float>(getWidth()), static_cast<float>(getHeight())));
-
-            //read_stats();
-            stats = ((MySeqPlugin *) (this->getPluginInstancePointer()))->stats;
-
-
-            int window_flags = ImGuiWindowFlags_NoNavFocus;
-            //ImGuiWindowFlags_NoDecoration |
-            //ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings
-            //| ImGuiWindowFlags_NoScrollWithMouse
-            //| ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoResize;
-            //| ImGuiWindowFlags_NoNavInputs;
-
-            const ImGuiViewport *viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(viewport->Pos);
-            ImGui::SetNextWindowSize(viewport->Size);
-
-            bool dirty = false;
-            bool create = false;
-            bool delete_ = false;
-            bool duplicate = false;
-
-            if (state.num_patterns() == 0) {
+        void show_patterns_buttons(bool &dirty) {
+            if (ImGui::Button("New")) {
                 state.set_selected_id(state.create_pattern().id);
-                auto &cur = state.get_selected_pattern().cursor;
-                cur.x = 0;
-                cur.y = 127 - 24;
-                SET_DIRTY_PUSH_UNDO("initial");
+                SET_DIRTY_PUSH_UNDO("new pattern");
             }
-
-            if (ImGui::Begin("MySeq", nullptr, window_flags)) {
-
-                general_keyboard_interaction(dirty);
-
-                ImGui::SetWindowFontScale(1.0);
-
-                ImGui::BeginGroup();
-                show_grid2(dirty);
-                ImGui::EndGroup();
-
-                ImGui::SameLine();
-                ImGui::BeginGroup();
-                if (ImGui::Button("Load file")) {
-                    FileBrowserOptions options{};
-                    file_browser_saving = false;
-                    this->openFileBrowser(options);
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Save file")) {
-                    FileBrowserOptions options{};
-                    options.saving = true;
-                    file_browser_saving = true;
-                    this->openFileBrowser(options);
-                }
-                ImGui::Text("%s", filename.has_value() ? (*filename).c_str() : "null");
-                ImGui::Checkbox("Autosave", &autosave);
-
-                int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-                if (ImGui::BeginTable("##patterns_table", 5, patterns_table_flags, ImVec2(0, 200))) {
-                    ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
-                    ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
-                    ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 2);
-                    ImGui::TableSetupColumn("range", ImGuiTableColumnFlags_None, 0.0, 3);
-                    ImGui::TableHeadersRow();
-                    state.each_pattern([&](const myseq::Pattern &pp) {
-                        ImGui::TableNextRow();
-
-                        // id
-                        ImGui::TableNextColumn();
-                        int flags = ImGuiSelectableFlags_None;
-                        const auto id = pp.id;
-                        if (ImGui::Selectable(std::to_string(id).c_str(), state.get_selected_id() == id, flags)) {
-                            state.set_selected_id(id);
-                            SET_DIRTY_PUSH_UNDO("select pattern")
-                        }
-
-                        // length
-                        ImGui::TableNextColumn();
-                        ImGui::Text("%s", std::to_string(pp.width).c_str());
-
-                        // first_note
-                        ImGui::TableNextColumn();
-                        ImGui::PushID(id);
-                        myseq::Pattern &tmp = state.get_pattern(id);
-                        ImGui::PushID(1);
-                        const auto first_note = note_select(tmp.first_note);
-                        if (tmp.first_note != first_note) {
-                            tmp.first_note = first_note;
-                            tmp.last_note = tmp.first_note + tmp.width;
-                            SET_DIRTY_PUSH_UNDO("first_note")
-                        }
-                        ImGui::PopID();
-                        ImGui::PopID();
-
-                        ImGui::TableNextColumn();
-                        ImGui::Text("%s - %s", ALL_NOTES[tmp.first_note], ALL_NOTES[tmp.last_note]);
-                    });
-                    ImGui::EndTable();
-                }
-                {
-                    auto &p = state.get_selected_pattern();
-                    float pattern_speed_value = p.get_speed();
-                    if (ImGui::SliderFloat("Speed", &pattern_speed_value, 0.0, 2.0, "%f", ImGuiSliderFlags_None)) {
-                        p.set_speed(pattern_speed_value);
-                        SET_DIRTY_PUSH_UNDO("speed");
-                    }
-                }
-                if (ImGui::Button("Add")) {
-                    create = true;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Delete")) {
-                    delete_ = true;
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Duplicate")) {
-                    duplicate = true;
-                }
-
-                if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
-                    SET_DIRTY_PUSH_UNDO("play_selected");
-                }
-                if (ImGui::Checkbox("Play note triggered patterns", &state.play_note_triggered)) {
-                    SET_DIRTY_PUSH_UNDO("play_note_triggered");
-                }
-                if (ImGui::GetIO().KeyAlt) ImGui::Text("Alt");
-                if (ImGui::GetIO().KeyCtrl) ImGui::Text("Ctrl");
-                if (cmd_held()) ImGui::Text("Cmd");
-
-                ImGui::EndGroup();
-
-                {
-                    auto &p = state.get_selected_pattern();
-                    int pattern_width_slider_value = p.width;
-                    if (ImGui::SliderInt("##pattern_width", &pattern_width_slider_value, 1, 32, nullptr,
-                                         ImGuiSliderFlags_None)) {
-                        p.resize_width(pattern_width_slider_value);
-                        SET_DIRTY_PUSH_UNDO("resize_width");
-                    }
-                }
-
-                show_keys(dirty, state.get_selected_pattern());
-
-                if (ImGui::Button("Show metrics")) {
-                    show_metrics = true;
-                }
-
-                //p.first_note = note_select("First note", p.first_note);
-                //ImGui::SameLine();
-                //p.last_note = note_select("Last note", p.last_note);
-                //ImGui::PopID();
-                ImGui::BeginGroup();
-
-                const auto dsp = ((MySeqPlugin *) getPluginInstancePointer());
-                const TimePosition &t = dsp->last_time_position;
-                const double sr = dsp->getSampleRate();
-
-                const myseq::TimePositionCalc &tc = myseq::TimePositionCalc(t, sr);
-                auto fps = ImGui::GetCurrentContext()->IO.Framerate;
-                if (fps > 999.9) {
-                    ImGui::Text("FPS=+999.9");
-                } else {
-                    ImGui::Text("FPS=%.1f", fps);
-                }
-                if (ImGui::Button("fail asser")) {
-                    assert(false);
-                }
-
-                ImGui::Text("active_patterns=%lu", dsp->player.active_patterns.size());
-                ImGui::Text("tick=%f", tc.global_tick());
-                ImGui::Text("interaction=%s", interaction_to_string(interaction));
-                int selected_cells_count = 0;
-                state.get_selected_pattern().each_selected_cell(
-                        [&selected_cells_count](const myseq::Cell &c) {
-                            selected_cells_count += 1;
-                        });
-
-                ImGui::Text("undo length: %lu", undo_stack.size());
-                ImGui::Text("key a down=%d", ImGui::IsKeyDown(ImGuiKey_A));
-                ImGui::Text("key c down=%d", ImGui::IsKeyDown(ImGuiKey_C));
-                ImGui::Text("key v down=%d", ImGui::IsKeyDown(ImGuiKey_V));
-                ImGui::Text("publish_count=%d", publish_count);
-                ImGui::Text("publish_last_bytes=%d", publish_last_bytes);
-                ImGui::Text("selected_cells count=%d", selected_cells_count);
-                ImGui::Text("clipboard.size=%lu", clipboard.size());
-                ImGui::Text("offset=%f %f", offset.x, offset.y);
-                ImGui::EndGroup();
-                if (stats.has_value()) {
-                    ImGui::SameLine();
-                    ImGui::BeginGroup();
-                    // ImGui::Text("stats=0x%016lx", (unsigned long) stats);
-                    ImGui::Text("stats.transport.valid=%d", stats->transport.valid);
-                    ImGui::Text("stats.transport.playing=%d", stats->transport.playing);
-                    ImGui::Text("stats.transport.frame=%llu", stats->transport.frame);
-                    ImGui::Text("stats.transport.bar=%d", stats->transport.bar);
-                    ImGui::Text("stats.transport.beat=%d", stats->transport.beat);
-                    ImGui::Text("stats.transport.tick=%f", stats->transport.tick);
-                    ImGui::Text("stats.transport.barStartTick=%f", stats->transport.bar_start_tick);
-                    ImGui::Text("stats.transport.beatsPerBar=%f", stats->transport.beats_per_bar);
-                    ImGui::Text("stats.transport.beatType=%f", stats->transport.beat_type);
-                    ImGui::Text("stats.transport.ticksPerBeat=%f", stats->transport.ticks_per_beat);
-                    ImGui::Text("stats.transport.beatsPerMinute=%f", stats->transport.beats_per_minute);
-                    ImGui::EndGroup();
-                }
-
-            }
-
-
-            if (show_metrics) {
-                ImGui::ShowMetricsWindow(&show_metrics);
-            }
-
-            ImGui::End();
-            if (create) {
-                state.set_selected_id(state.create_pattern().id);
-                SET_DIRTY_PUSH_UNDO("create");
-            }
-            if (delete_) {
+            ImGui::SameLine();
+            if (ImGui::Button("Delete")) {
                 state.delete_pattern(state.get_selected_id());
-                SET_DIRTY_PUSH_UNDO("delete");
+                SET_DIRTY_PUSH_UNDO("delete pattern");
             }
-            if (duplicate) {
+            ImGui::SameLine();
+            if (ImGui::Button("Duplicate")) {
                 state.set_selected_id(state.duplicate_pattern(state.get_selected_id()).id);
-                SET_DIRTY_PUSH_UNDO("duplicate");
+                SET_DIRTY_PUSH_UNDO("duplicate pattern");
             }
+            if (ImGui::Checkbox("Play selected pattern", &state.play_selected)) {
+                SET_DIRTY_PUSH_UNDO("play_selected");
+            }
+            if (ImGui::Checkbox("Play note triggered patterns", &state.play_note_triggered)) {
+                SET_DIRTY_PUSH_UNDO("play_note_triggered");
+            }
+        }
+
+        void show_pattern_controls(bool &dirty) {
+            auto &p = state.get_selected_pattern();
+            int pattern_width_slider_value = p.width;
+            if (ImGui::SliderInt("steps", &pattern_width_slider_value, 1, 32, nullptr,
+                                 ImGuiSliderFlags_None)) {
+                p.resize_width(pattern_width_slider_value);
+                SET_DIRTY_PUSH_UNDO("resize_width");
+            }
+
+            float pattern_speed_value = p.get_speed();
+            if (ImGui::SliderFloat("speed", &pattern_speed_value, 0.0, 2.0, "%f", ImGuiSliderFlags_None)) {
+                p.set_speed(pattern_speed_value);
+                SET_DIRTY_PUSH_UNDO("speed");
+            }
+        }
+
+        void onImGuiDisplay() override {
+            bool dirty = false;
+            int window_flags =
+                    ImGuiWindowFlags_NoMove |
+                    ImGuiWindowFlags_NoCollapse |
+                    ImGuiWindowFlags_NoScrollWithMouse |
+                    ImGuiWindowFlags_NoResize;
+            ImGui::SetNextWindowSize(
+                    ImVec2((float) visible_columns * default_cell_width + 4.0f * ImGui::GetStyle().ItemSpacing.x, 640));
+            general_keyboard_interaction(dirty);
+            if (ImGui::Begin("pattern grid", nullptr, window_flags)) {
+                show_grid(dirty);
+            }
+            ImGui::SetNextWindowPos(ImVec2(right_of_current_window(), top_of_current_window()));
+            ImGui::End();
+
+            ImGui::SetNextWindowSize(ImVec2(400.0f, 300.0f));
+            if (ImGui::Begin("patterns", nullptr, window_flags)) {
+                show_patterns_table(dirty);
+                show_patterns_buttons(dirty);
+            }
+            ImGui::SetNextWindowPos(ImVec2(left_of_current_window(), bottom_of_current_window()));
+            ImGui::End();
+
+
+            ImGui::SetNextWindowSize(ImVec2(400.0f, 300.0f));
+            if (ImGui::Begin("pattern", nullptr, window_flags)) {
+                show_pattern_controls(dirty);
+            }
+            ImGui::End();
+
+            //ImGui::GetCurrentContext()->DebugLogFlags |= ImGuiDebugLogFlags_EventFocus;
+            // ImGui::ShowDebugLogWindow();
+
             if (dirty) {
                 publish();
             }
