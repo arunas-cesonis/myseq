@@ -858,7 +858,6 @@ START_NAMESPACE_DISTRHO
                 active_column = (int) std::floor((double) p.width * (aps->time / aps->duration));
             }
 
-
             int skip[128]{};
 
             for (auto j = first_visible_col; j <= last_visible_col; j++) {
@@ -1097,6 +1096,26 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        void show_patterns_file(bool &dirty) {
+            if (filename.has_value()) {
+                ImGui::Text("%s", filename->c_str());
+            } else {
+                ImGui::Text("none");
+            }
+            if (ImGui::Button("Open")) {
+                FileBrowserOptions options{};
+                file_browser_saving = false;
+                this->openFileBrowser(options);
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Save")) {
+                FileBrowserOptions options{};
+                options.saving = true;
+                file_browser_saving = true;
+                this->openFileBrowser(options);
+            }
+        }
+
         void show_patterns_buttons(bool &dirty) {
             if (ImGui::Button("New")) {
                 state.set_selected_id(state.create_pattern().id);
@@ -1160,6 +1179,7 @@ START_NAMESPACE_DISTRHO
 
             ImGui::SetNextWindowSize(ImVec2(400.0f, 300.0f));
             if (ImGui::Begin("patterns", nullptr, window_flags)) {
+                show_patterns_file(dirty);
                 show_patterns_table(dirty);
                 show_patterns_buttons(dirty);
             }

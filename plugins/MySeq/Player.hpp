@@ -176,15 +176,16 @@ namespace myseq {
             if (window_start >= window_end) {
                 return false;
             }
+            const auto step_duration = tp.step_duration * p.get_speed();
 
-            double pattern_elapsed = window_start - ap.start_time * p.get_speed();
-            double pattern_duration = tp.step_duration * static_cast<double>(p.width);
+            double pattern_elapsed = window_start - ap.start_time;
+            double pattern_duration = step_duration * static_cast<double>(p.width);
             double pattern_time = std::fmod(pattern_elapsed, pattern_duration);
             auto next_column = static_cast<int>(std::ceil(
-                    std::fmod(pattern_elapsed, pattern_duration) / tp.step_duration));
+                    std::fmod(pattern_elapsed, pattern_duration) / step_duration));
 
             auto last_column = static_cast<int>(std::floor(
-                    (pattern_time + tp.window) / tp.step_duration));
+                    (pattern_time + tp.window) / step_duration));
 
             if (next_column < 0 || last_column < 0) {
                 return true;
@@ -192,7 +193,7 @@ namespace myseq {
 
             for (auto i = next_column; i <= last_column; i++) {
                 const auto column_index = i % p.width;
-                auto column_time = static_cast<double>(i) * tp.step_duration - pattern_time;
+                auto column_time = static_cast<double>(i) * step_duration - pattern_time;
                 for (int row_index = 0; row_index < p.height; row_index++) {
                     const auto coords = V2i(column_index, row_index);
                     if (p.is_extension_of_tied(coords)) {
@@ -201,7 +202,7 @@ namespace myseq {
                     const auto v = p.get_velocity(coords);
                     if (v > 0) {
                         const auto length = static_cast<double>(p.get_length(coords));
-                        const auto step_end_time = window_start + column_time + tp.step_duration * length;
+                        const auto step_end_time = window_start + column_time + step_duration * length;
                         const auto note_end_time = ap.finished ? std::min(step_end_time,
                                                                           ap.end_time)
                                                                : step_end_time;
