@@ -131,7 +131,7 @@ START_NAMESPACE_DISTRHO
                 : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
             const double scaleFactor = getScaleFactor();
 
-            const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE");
+            const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE1");
             if (nullptr != myseq_load_json_file) {
                 filename = {std::string(myseq_load_json_file)};
                 read_state_file();
@@ -427,11 +427,16 @@ START_NAMESPACE_DISTRHO
                     p.clear_cell(c.position);
                 });
                 SET_DIRTY_PUSH_UNDO("delete");
-            } else if (key_pressed(ImGuiKey_Y)) {
+            } else if (key_pressed(ImGuiKey_A)) {
+                p.each_cell([&](const myseq::Cell &c) {
+                    p.set_selected(c.position, true);
+                });
+                SET_DIRTY();
+            } else if (key_pressed(ImGuiKey_Y) || key_pressed(ImGuiKey_C)) {
                 grid_copy(p);
             } else if (key_pressed(ImGuiKey_Z)) {
                 p.move_cursor_to_lowest_note();
-            } else if (key_pressed(ImGuiKey_P)) {
+            } else if (key_pressed(ImGuiKey_P) || key_pressed(ImGuiKey_V)) {
                 grid_paste(dirty, p);
             } else if (key_pressed_re(ImGuiKey_K)) {
                 if (p.cursor.y > 0) {
@@ -453,6 +458,8 @@ START_NAMESPACE_DISTRHO
                     p.cursor.x += 1;
                     SET_DIRTY();
                 }
+            } else if (key_pressed_re(ImGuiKey_Escape)) {
+                p.deselect_all();
             } else {
                 const int updown = shift_held ? 12 : 1;
                 // For some reason CTRL+A makes A stuck
@@ -793,23 +800,6 @@ START_NAMESPACE_DISTRHO
             }
         }
 
-        void show_grid2(bool &dirty) {
-            float grid_width = ImGui::GetContentRegionAvail().x;
-            auto cell_size = ImVec2(cell_width, cell_height);
-            auto grid_height = ImGui::GetContentRegionAvail().y; //cell_size.y * (float) visible_rows;
-            const auto grid_size = ImVec2(grid_width, grid_height);
-            const auto id = ImGui::GetID("grid");
-
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32_BLACK_TRANS);
-            if (ImGui::BeginChildFrame(id, grid_size)) {
-                show_grid(dirty);
-
-                //ImGui::Button("a", ImVec2(10.0, 10.0));
-            }
-            ImGui::PopStyleColor(1);
-            ImGui::EndChildFrame();
-        }
-
         void show_grid(bool &dirty) {
 
             const auto focused = ImGui::IsWindowFocused();
@@ -1064,7 +1054,7 @@ START_NAMESPACE_DISTRHO
 
         void show_patterns_table(bool &dirty) {
             int patterns_table_flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
-            if (ImGui::BeginTable("##patterns_table", 5, patterns_table_flags, ImVec2(0, 200))) {
+            if (ImGui::BeginTable("##patterns_table", 5, patterns_table_flags, ImVec2(0, 100))) {
                 ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_None, 0.0, 0);
                 ImGui::TableSetupColumn("length", ImGuiTableColumnFlags_None, 0.0, 1);
                 ImGui::TableSetupColumn("first note", ImGuiTableColumnFlags_None, 0.0, 2);
@@ -1144,6 +1134,9 @@ START_NAMESPACE_DISTRHO
                 p.set_speed(pattern_speed_value);
                 SET_DIRTY_PUSH_UNDO("speed");
             }
+            if (ImGui::Button("select row")) {
+                p.select_row();
+            }
         }
 
         void onImGuiDisplay() override {
@@ -1156,11 +1149,14 @@ START_NAMESPACE_DISTRHO
             ImGui::SetNextWindowSize(
                     ImVec2((float) visible_columns * default_cell_width + 4.0f * ImGui::GetStyle().ItemSpacing.x, 640));
             general_keyboard_interaction(dirty);
-            if (ImGui::Begin("pattern grid", nullptr, window_flags)) {
-                show_grid(dirty);
+            bool have_patterns = state.num_patterns() > 0;
+            if (have_patterns) {
+                if (ImGui::Begin("pattern grid", nullptr, window_flags)) {
+                    show_grid(dirty);
+                }
+                ImGui::SetNextWindowPos(ImVec2(right_of_current_window(), top_of_current_window()));
+                ImGui::End();
             }
-            ImGui::SetNextWindowPos(ImVec2(right_of_current_window(), top_of_current_window()));
-            ImGui::End();
 
             ImGui::SetNextWindowSize(ImVec2(400.0f, 300.0f));
             if (ImGui::Begin("patterns", nullptr, window_flags)) {
@@ -1171,11 +1167,13 @@ START_NAMESPACE_DISTRHO
             ImGui::End();
 
 
-            ImGui::SetNextWindowSize(ImVec2(400.0f, 300.0f));
-            if (ImGui::Begin("pattern", nullptr, window_flags)) {
-                show_pattern_controls(dirty);
+            if (have_patterns) {
+                ImGui::SetNextWindowSize(ImVec2(400.0f, 300.0f));
+                if (ImGui::Begin("pattern", nullptr, window_flags)) {
+                    show_pattern_controls(dirty);
+                }
+                ImGui::End();
             }
-            ImGui::End();
 
             //ImGui::GetCurrentContext()->DebugLogFlags |= ImGuiDebugLogFlags_EventFocus;
             // ImGui::ShowDebugLogWindow();

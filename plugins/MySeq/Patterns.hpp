@@ -340,6 +340,13 @@ namespace myseq {
             this->speed = new_speed;
         }
 
+        void select_row() {
+            deselect_all();
+            for (int x = 0; x < width; x++) {
+                set_selected(V2i(x, cursor.y), true);
+            }
+        }
+
         [[nodiscard]] float get_speed() const {
             return speed;
         }
@@ -365,6 +372,7 @@ namespace myseq {
         }
 
         void set_selected(const V2i &v, bool selected) {
+
             if (exists(v)) {
                 get_cell(v).selected = selected;
             }

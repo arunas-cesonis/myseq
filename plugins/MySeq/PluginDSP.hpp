@@ -94,10 +94,12 @@ START_NAMESPACE_DISTRHO
                          const myseq::TimeParams &tp) {
 
             // if only currently selected (in the UI) pattern should be played
-            if (state.play_selected) {
-                player.play_selected_pattern(state);
-            } else {
-                player.stop_selected_pattern();
+            if (state.num_patterns() > 0) {
+                if (state.play_selected) {
+                    player.play_selected_pattern(state);
+                } else {
+                    player.stop_selected_pattern();
+                }
             }
 
             if (state.play_note_triggered) {
