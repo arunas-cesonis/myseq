@@ -1075,7 +1075,7 @@ START_NAMESPACE_DISTRHO
                     ImGui::PushID(1);
                     const auto new_first_note = note_select(tmp.get_first_note());
                     if (tmp.get_first_note() != new_first_note) {
-                        auto note_count = std::min(16, 127 - new_first_note);t ad
+                        auto note_count = std::min(16, 127 - new_first_note);
                         tmp.set_note_trigger_range(new_first_note, note_count);
                         SET_DIRTY_PUSH_UNDO("first_note")
                     }
@@ -1219,6 +1219,26 @@ START_NAMESPACE_DISTRHO
 
             //ImGui::GetCurrentContext()->DebugLogFlags |= ImGuiDebugLogFlags_EventFocus;
             // ImGui::ShowDebugLogWindow();
+            ImGui::SetNextWindowPos(ImVec2(right_of_current_window(), bottom_of_current_window()));
+            if (ImGui::Begin("my_debug_window", nullptr, window_flags)) {
+                const auto tp = ((MySeqPlugin *) (this->getPluginInstancePointer()))->last_time_position;
+                const auto sample_rate = ((MySeqPlugin *) (this->getPluginInstancePointer()))->getSampleRate();
+                const myseq::TimePositionCalc tc = {tp, sample_rate};
+                ImGui::Text("tp.frame: %llu", tp.frame);
+                ImGui::Text("tp.playing: %d", tp.playing);
+                ImGui::Text("tp.bbt.valid: %d", tp.bbt.valid);
+                ImGui::Text("tp.bbt.bar: %d", tp.bbt.bar);
+                ImGui::Text("tp.bbt.beat: %d", tp.bbt.beat);
+                ImGui::Text("tp.bbt.tick: %f", tp.bbt.tick);
+                ImGui::Text("tp.bbt.barStartTick: %f", tp.bbt.barStartTick);
+                ImGui::Text("tp.bbt.beatsPerBar: %f", tp.bbt.beatsPerBar);
+                ImGui::Text("tp.bbt.beatType: %f", tp.bbt.beatType);
+                ImGui::Text("tp.bbt.ticksPerBeat: %f", tp.bbt.ticksPerBeat);
+                ImGui::Text("tp.bbt.beatsPerMinute: %f", tp.bbt.beatsPerMinute);
+
+            }
+            ImGui::End();
+
 
             if (dirty) {
                 publish();

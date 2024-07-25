@@ -178,7 +178,7 @@ namespace myseq {
             if (window_start >= window_end) {
                 return false;
             }
-            const auto step_duration = tp.step_duration * p.get_speed();
+            const auto step_duration = tp.step_duration / p.get_speed();
 
             double pattern_elapsed = window_start - ap.start_time;
             double pattern_duration = step_duration * static_cast<double>(p.width);
