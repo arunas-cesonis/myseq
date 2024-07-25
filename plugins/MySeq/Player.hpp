@@ -70,6 +70,8 @@ namespace myseq {
         bool finished;
         Note note;
         uint8_t velocity;
+        double last_elapsed;
+        double last_duration;
     };
 
 
@@ -89,7 +91,7 @@ namespace myseq {
 
         void play_selected_pattern(const myseq::State &state) {
             auto &p = state.get_selected_pattern();
-            const ActivePattern ap = {p.get_id(), 0.0, 0.0, false, Note(p.get_first_note(), 0), 127};
+            const ActivePattern ap = {p.get_id(), 0.0, 0.0, false, Note(p.get_first_note(), 0), 127, 0.0, 0.0};
             selected_active_pattern = {ap};
         }
 

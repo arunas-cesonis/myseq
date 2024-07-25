@@ -1,5 +1,7 @@
 - [x] Crash: when clicking on extended part of tied note
 - [x] Save filename to state so that it is persistet across GUI sessions
+- [ ] Crash: crashes when seardching for free note range on creation of new pattern when there are patterns already
+- [ ] Invert speed in UI (0.5 is 2x faster)
 - [ ] Adjust velocity of a row
 - [x] Tied notes play multiple notes
 - [x] After pasting, update the selection to be the pasted cells

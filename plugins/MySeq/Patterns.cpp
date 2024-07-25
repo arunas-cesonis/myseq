@@ -29,6 +29,7 @@ namespace myseq {
         auto height = value["height"].GetInt();
         auto first_note = value["first_note"].GetInt();
         auto last_note = value["last_note"].GetInt();
+        auto default_velocity = value.HasMember("default_velocity") ? value["default_velocity"].GetInt() : 127;
         auto speed = value.HasMember("speed") ? value["speed"].GetFloat() : 1.0;
         auto carr = value["cells"].GetArray();
         V2f viewport = value.HasMember("viewport") ?
@@ -39,6 +40,7 @@ namespace myseq {
                        value["cursor_y"].GetInt() : 0;
         Pattern p(id, width, height, first_note, last_note, V2i(cursor_x, cursor_y));
         p.set_speed((float) speed);
+        p.set_default_velocity((uint8_t) default_velocity);
         p.set_viewport(viewport);
         for (int i = 0; i < (int) carr.Size(); i++) {
             auto cobj = carr[i].GetObject();
@@ -106,6 +108,7 @@ namespace myseq {
                 .AddMember("cursor_x", pattern.cursor.x, allocator)
                 .AddMember("cursor_y", pattern.cursor.y, allocator)
                 .AddMember("speed", pattern.get_speed(), allocator)
+                .AddMember("default_velocity", pattern.get_default_velocity(), allocator)
                 .AddMember("viewport", v2f_to_json(pattern.get_viewport(), allocator), allocator);
         //d.GetObject().AddMember("data", height, d.GetAllocator());
         rapidjson::Value data_arr(rapidjson::kArrayType);

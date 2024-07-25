@@ -131,7 +131,7 @@ START_NAMESPACE_DISTRHO
                 : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
             const double scaleFactor = getScaleFactor();
 
-            const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE1");
+            const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE");
             if (nullptr != myseq_load_json_file) {
                 filename = {std::string(myseq_load_json_file)};
                 read_state_file();
@@ -547,7 +547,7 @@ START_NAMESPACE_DISTRHO
                         const auto c = V2i(x1, y);
                         const auto n = x2 - x1 + 1;
                         d_debug("length %d", n);
-                        p.set_velocity(c, 127);
+                        p.set_velocity(c, p.get_default_velocity());
                         p.set_length(c, n);
                         interaction = Interaction::None;
                         SET_DIRTY_PUSH_UNDO("DrawingLongCell");
@@ -1149,10 +1149,33 @@ START_NAMESPACE_DISTRHO
                 SET_DIRTY_PUSH_UNDO("resize_width");
             }
 
+            const float predefs[] = {0.25, 0.5, 1.0, 2.0, 4.0};
+            bool first = true;
+            for (auto x: predefs) {
+                char tmp[16];
+                snprintf(tmp, sizeof(tmp), "%.2fx", x);
+                if (!first) {
+                    ImGui::SameLine();
+                }
+                if (ImGui::Button(tmp)) {
+                    p.set_speed(x);
+                    SET_DIRTY_PUSH_UNDO("speed");
+                }
+                first = false;
+            }
+            ImGui::SetNextItemWidth(100.0);
+            ImGui::SameLine();
             float pattern_speed_value = p.get_speed();
-            if (ImGui::SliderFloat("speed", &pattern_speed_value, 0.0, 2.0, "%f", ImGuiSliderFlags_None)) {
+            if (ImGui::SliderFloat("speed", &pattern_speed_value, 0.0, 4.0, "%.2f", ImGuiSliderFlags_None)) {
                 p.set_speed(pattern_speed_value);
                 SET_DIRTY_PUSH_UNDO("speed");
+            }
+
+            int pattern_default_velocity_value = (int) p.get_default_velocity();
+            if (ImGui::SliderInt("default_velocity", &pattern_default_velocity_value, 0, 127, nullptr,
+                                 ImGuiSliderFlags_None)) {
+                p.set_default_velocity(pattern_default_velocity_value);
+                SET_DIRTY_PUSH_UNDO("default_velocity");
             }
             if (ImGui::Button("select row")) {
                 p.select_row();

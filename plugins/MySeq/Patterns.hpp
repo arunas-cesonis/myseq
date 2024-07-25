@@ -180,6 +180,7 @@ namespace myseq {
         GenArray<Cell> cells;
         std::valarray<Id> grid;
         float speed = 1.0;
+        uint8_t default_velocity = 100;
         V2f viewport; // UI view offset in percentage
 
         [[nodiscard]] V2i index_to_coords(int index) const {
@@ -213,7 +214,7 @@ namespace myseq {
             if (cells.exists(cell_id)) {
                 return cells.get(cell_id);
             } else {
-                const Cell cell = {coords, 127, false, 1};
+                const Cell cell = {coords, get_default_velocity(), false, 1};
                 const auto new_id = cells.push(cell);
                 grid[coords_to_index(coords)] = new_id;
                 return cells.get(new_id);
@@ -340,11 +341,19 @@ namespace myseq {
             this->speed = new_speed;
         }
 
+        void set_default_velocity(uint8_t new_default_velocity) {
+            this->default_velocity = new_default_velocity;
+        }
+
         void select_row() {
             deselect_all();
             for (int x = 0; x < width; x++) {
                 set_selected(V2i(x, cursor.y), true);
             }
+        }
+
+        [[nodiscard]] uint8_t get_default_velocity() const {
+            return default_velocity;
         }
 
         [[nodiscard]] float get_speed() const {
@@ -558,7 +567,7 @@ namespace myseq {
         // are conveniently placed at the beginning of octaves
         // by far not ideal solution; need to use the sequencer more to
         // understand what is the best way to handle this
-        [[nodiscard]] std::pair<int, int> try_find_free_16_range() const {
+        [[nodiscard]] std::pair<int, int> first_16_range() const {
             int used[128]{};
             for (auto &p: patterns) {
                 for (int i = p.first_note; i <= p.last_note; i++) {
@@ -576,7 +585,7 @@ namespace myseq {
 
         Pattern &create_pattern() {
             Pattern p = Pattern(next_unused_id());
-            const auto range = try_find_free_16_range();
+            const auto range = first_16_range();
             p.first_note = range.first;
             p.last_note = range.second;
             patterns.push_back(p);
