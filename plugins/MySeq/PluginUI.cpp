@@ -1033,6 +1033,7 @@ START_NAMESPACE_DISTRHO
             } else {
                 read_state_file();
             }
+            setState("filename", filename.value().c_str());
         }
 
         static float right_of_current_window() {
@@ -1158,7 +1159,13 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        void read_stats() {
+            stats = ((MySeqPlugin *) (this->getPluginInstancePointer()))->stats;
+        }
+
         void onImGuiDisplay() override {
+            read_stats();
+
             bool dirty = false;
             int window_flags =
                     ImGuiWindowFlags_NoMove |
@@ -1208,7 +1215,7 @@ START_NAMESPACE_DISTRHO
         }
 
         void stateChanged(const char *key, const char *value) override {
-            //d_debug("PluginUI: stateChanged key=%s value=%s", key, value);
+            d_debug("PluginUI: stateChanged key=%s", key);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
             } else if (std::strcmp(key, "filename") == 0) {
