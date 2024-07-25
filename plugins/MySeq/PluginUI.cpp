@@ -299,14 +299,14 @@ START_NAMESPACE_DISTRHO
             const auto text_color = ImColor(ImGui::GetStyleColorVec4(ImGuiCol_Text));
             const auto style = ImGui::GetStyle();
 
-            const auto selection_xy = cpos + ImVec2((float) p.first_note * key_width, 0.0);
-            const auto selection_zw = cpos + ImVec2((float) p.last_note * key_width, height);
+            const auto selection_xy = cpos + ImVec2((float) p.get_first_note() * key_width, 0.0);
+            const auto selection_zw = cpos + ImVec2((float) p.get_last_note() * key_width, height);
 
             //ImGui::RenderFrame(selection_xy, selection_zw, ImColor(255, 0, 0), true, 2.0);
             dl->AddRectFilled(selection_xy, selection_zw, selected_color);
             dl->AddRect(selection_xy, selection_zw, IM_COL32_WHITE);
 
-            //dl->AddText(p1, IM_COL32_BLACK, ALL_NOTES[p.first_note]);
+            //dl->AddText(p1, IM_COL32_BLACK, ALL_NOTES[p.get_first_note()]);
 
             const float black_keys[] = {0.0, 1.0, 3.0, 4.0, 5.0};
             for (int i = 0; i < octaves; i++) {
@@ -329,9 +329,9 @@ START_NAMESPACE_DISTRHO
                 dl->AddText(xy + ImVec2(white_key_width * 0.5f - sz.x * 0.5f, height - sz.y - 4.0f), IM_COL32_BLACK, s,
                             e);
             }
-            const auto sdz = ImGui::CalcTextSize(ALL_NOTES[p.first_note]);
+            const auto sdz = ImGui::CalcTextSize(ALL_NOTES[p.get_first_note()]);
             const auto sdzp = sdz + style.FramePadding * 2.0f;
-            const auto qdz = ImGui::CalcTextSize(ALL_NOTES[p.last_note]);
+            const auto qdz = ImGui::CalcTextSize(ALL_NOTES[p.get_last_note()]);
             const auto qdzp = qdz + style.FramePadding * 2.0f;
             const auto p1 = selection_xy + ImVec2(0.0, height - sdzp.y);
             const auto p2 = p1 + sdzp;
@@ -340,10 +340,10 @@ START_NAMESPACE_DISTRHO
             const auto q2 = q1 + qdzp;
             dl->AddRectFilled(p1, p2, button_color);
             dl->AddRect(p1, p2, IM_COL32_BLACK);
-            dl->AddText((p1 + p2) * 0.5f - sdz * 0.5f, text_color, ALL_NOTES[p.first_note]);
+            dl->AddText((p1 + p2) * 0.5f - sdz * 0.5f, text_color, ALL_NOTES[p.get_first_note()]);
             dl->AddRectFilled(q1, q2, button_color);
             dl->AddRect(q1, q2, IM_COL32_BLACK);
-            dl->AddText((q1 + q2) * 0.5f - qdz * 0.5f, text_color, ALL_NOTES[p.last_note]);
+            dl->AddText((q1 + q2) * 0.5f - qdz * 0.5f, text_color, ALL_NOTES[p.get_last_note()]);
             ImGui::Dummy(ImVec2(width, height));
 
             if (ImGui::IsItemHovered()) {
@@ -356,17 +356,9 @@ START_NAMESPACE_DISTRHO
                     const auto note1 = std::max(0, (int) std::floor((mpos.x - cpos.x) / key_width));
                     const auto note2 = std::max(0, (int) std::floor((drag_started_mpos.x - cpos.x) / key_width));
                     if (note1 < note2) {
-                        if (p.first_note != note1 || p.last_note != note2) {
-                            dirty = true;
-                            p.first_note = note1;
-                            p.last_note = note2;
-                        }
+                        p.set_note_trigger_range(note1, note2 - note1);
                     } else {
-                        if (p.first_note != note2 || p.last_note != note1) {
-                            dirty = true;
-                            p.first_note = note2;
-                            p.last_note = note1;
-                        }
+                        p.set_note_trigger_range(note2, note1 - note2);
                     }
                 } else if (ImGui::BeginTooltip()) {
                     const auto note = (int) std::floor((ImGui::GetMousePos().x - cpos.x) / key_width);
@@ -1081,17 +1073,17 @@ START_NAMESPACE_DISTRHO
                     ImGui::PushID(id);
                     myseq::Pattern &tmp = state.get_pattern(id);
                     ImGui::PushID(1);
-                    const auto first_note = note_select(tmp.first_note);
-                    if (tmp.first_note != first_note) {
-                        tmp.first_note = first_note;
-                        tmp.last_note = tmp.first_note + tmp.width;
+                    const auto new_first_note = note_select(tmp.get_first_note());
+                    if (tmp.get_first_note() != new_first_note) {
+                        auto note_count = std::min(16, 127 - new_first_note);t ad
+                        tmp.set_note_trigger_range(new_first_note, note_count);
                         SET_DIRTY_PUSH_UNDO("first_note")
                     }
                     ImGui::PopID();
                     ImGui::PopID();
 
                     ImGui::TableNextColumn();
-                    ImGui::Text("%s - %s", ALL_NOTES[tmp.first_note], ALL_NOTES[tmp.last_note]);
+                    ImGui::Text("%s - %s", ALL_NOTES[tmp.get_first_note()], ALL_NOTES[tmp.get_last_note()]);
                 });
                 ImGui::EndTable();
             }

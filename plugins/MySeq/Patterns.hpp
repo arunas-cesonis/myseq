@@ -221,13 +221,13 @@ namespace myseq {
             }
         }
 
-
+    private:
+        int first_note;
+        int last_note;
     public:
         int id;
         int width;
         int height;
-        int first_note;
-        int last_note;
         V2i cursor;
 
         explicit Pattern(int id) : id(id), width(32), height(128), first_note(0), last_note(127) {
@@ -473,6 +473,12 @@ namespace myseq {
             return id;
         }
 
+        void set_note_trigger_range(int new_first_note, int count) {
+            assert(new_first_note + count - 1 <= 127);
+            this->first_note = new_first_note;
+            this->last_note = first_note + count - 1;
+        }
+
         [[nodiscard]] int get_first_note() const {
             return first_note;
         }
@@ -512,11 +518,12 @@ namespace myseq {
 
         [[nodiscard]] const Pattern *first_pattern_with_note(Note note) const {
             auto it = patterns.begin();
-            while (it != patterns.end() && !(it->first_note <= note.note && note.note <= it->last_note)) {
-                ++it;
-            }
             if (it == patterns.end()) {
                 return nullptr;
+                while (it != patterns.end() &&
+                       !(it->get_first_note() <= note.note && note.note <= it->get_last_note())) {
+                    ++it;
+                }
             } else {
                 auto b = &*it;
                 return b;
@@ -570,7 +577,7 @@ namespace myseq {
         [[nodiscard]] std::pair<int, int> first_16_range() const {
             int used[128]{};
             for (auto &p: patterns) {
-                for (int i = p.first_note; i <= p.last_note; i++) {
+                for (int i = p.get_first_note(); i <= p.get_last_note(); i++) {
                     used[i]++;
                 }
             }
@@ -586,8 +593,7 @@ namespace myseq {
         Pattern &create_pattern() {
             Pattern p = Pattern(next_unused_id());
             const auto range = first_16_range();
-            p.first_note = range.first;
-            p.last_note = range.second;
+            p.set_note_trigger_range(range.first, 16);
             patterns.push_back(p);
             return patterns.back();
         }

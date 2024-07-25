@@ -263,11 +263,10 @@ namespace myseq {
         static void test_player_run() {
             State state;
             auto &p = state.create_pattern();
-            p.first_note = 0;
-            p.last_note = 15;
+            p.set_note_trigger_range(0, 15);
             std::cout << "p.id=" << p.id << std::endl;
-            std::cout << "p.first_note=" << p.first_note << std::endl;
-            std::cout << "p.last_note=" << p.last_note << std::endl;
+            std::cout << "p.first_note=" << p.get_first_note() << std::endl;
+            std::cout << "p.last_note=" << p.get_last_note() << std::endl;
             Player player;
             TimeParams tp;
             tp.step_duration = 1.0;
@@ -275,7 +274,7 @@ namespace myseq {
             tp.time = 0.0;
             tp.playing = true;
 
-            player.start_note_triggered(state, Note{(uint8_t) p.first_note, 0}, 127, 0.0, tp);
+            player.start_note_triggered(state, Note{(uint8_t) p.get_first_note(), 0}, 127, 0.0, tp);
             player.start_note_triggered(state, Note{(uint8_t) 10, 0}, 127, 0.0, tp);
 
             player.run([](uint8_t note, double velocity, double time) {
