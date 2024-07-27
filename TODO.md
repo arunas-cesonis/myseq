@@ -1,8 +1,9 @@
+- [ ] Fix playback visual feedback
 - [x] Crash: when clicking on extended part of tied note
 - [x] Save filename to state so that it is persistet across GUI sessions
 - [x] Crash: crashes when searching for free note range on creation of new pattern when there are patterns already
 - [x] Wrong: note ranges above 127
-- [ ] Invert speed in UI (0.5 is 2x faster)
+- [x] Invert speed in UI (0.5 is 2x faster)
 - [ ] Adjust velocity of a row
 - [x] Tied notes play multiple notes
 - [x] After pasting, update the selection to be the pasted cells
