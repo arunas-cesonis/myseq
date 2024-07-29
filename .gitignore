@@ -4,3 +4,6 @@ cpptrace
 cpptrace_installed
 .tmp
 test.json
+*.json
+.idea
+.DS_Store
