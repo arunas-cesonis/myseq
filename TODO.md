@@ -1,4 +1,7 @@
-- [ ] Fix playback visual feedback
+// 1 - select, move, adjust vol
+// 3 - draw
+
+- [x] Fix playback visual feedback
 - [x] Crash: when clicking on extended part of tied note
 - [x] Save filename to state so that it is persistet across GUI sessions
 - [x] Crash: crashes when searching for free note range on creation of new pattern when there are patterns already

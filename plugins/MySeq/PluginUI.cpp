@@ -110,7 +110,6 @@ START_NAMESPACE_DISTRHO
         bool file_browser_saving = false;
         std::optional<std::string> filename;
 
-        std::optional<myseq::Stats> stats;
         myseq::State state;
         std::stack<myseq::State> undo_stack{};
 
@@ -414,7 +413,7 @@ START_NAMESPACE_DISTRHO
         void
         grid_keyboard_interaction_no_mod(bool &dirty, myseq::Pattern &p) {
             auto shift_held = ImGui::GetIO().KeyShift;
-            if (key_pressed(ImGuiKey_Backspace) || key_pressed(ImGuiKey_Delete)) {
+            if (key_pressed(ImGuiKey_D) || key_pressed(ImGuiKey_Backspace) || key_pressed(ImGuiKey_Delete)) {
                 p.each_selected_cell([&](const myseq::Cell &c) {
                     p.clear_cell(c.position);
                 });
@@ -792,6 +791,10 @@ START_NAMESPACE_DISTRHO
             }
         }
 
+        [[nodiscard]] std::vector<myseq::ActivePattern::Stats> get_pattern_stats(int pattern_id) const {
+            return get_plugin()->player.get_active_pattern_stats(pattern_id);
+        }
+
         void show_grid(bool &dirty) {
 
             const auto focused = ImGui::IsWindowFocused();
@@ -845,9 +848,14 @@ START_NAMESPACE_DISTRHO
 
             draw_list->PushClipRect(grid_cpos, grid_cpos + ImVec2(grid_width, grid_height), true);
 
-            int active_column = -1;
-            if (aps.has_value()) {
-                active_column = (int) std::floor((double) p.width * (aps->time / aps->duration));
+            std::vector<int> active_columns;
+
+            for (const auto a: aps) {
+                active_columns.push_back((int) std::floor((double) p.width * (a.time / a.duration)));
+                // float completion = (float) (a.time / a.duration);
+                // auto p_min = grid_cpos + ImVec2(completion * grid_width, 0.0);
+                // auto p_max = p_min + ImVec2(10.0, grid_height);
+                // draw_list->AddRect(p_min, p_max, IM_COL32_WHITE);
             }
 
             int skip[128]{};
@@ -911,8 +919,11 @@ START_NAMESPACE_DISTRHO
                         // highlight the cells to be selescted
                     }
 
-                    if (j == active_column) {
-                        cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
+                    for (auto active_column: active_columns) {
+                        if (j == active_column) {
+                            cell_color1 = clamp_color(add_to_rgb(cell_color1, 0.25));
+                            break;
+                        }
                     }
                     draw_list->AddRectFilled(p_min, p_max, cell_color1);
                     // Might make sense instead of checking were
@@ -988,16 +999,6 @@ START_NAMESPACE_DISTRHO
             return {rect.first, rect.second, cell_min, cell_max};
         }
 
-        [[nodiscard]] std::optional<myseq::ActivePatternStats> get_pattern_stats(int pattern_id) const {
-            std::optional<myseq::ActivePatternStats> result;
-            for (const auto &aps: stats->active_patterns) {
-                if (aps.pattern_id == pattern_id) {
-                    result.emplace(aps);
-                    break;
-                }
-            }
-            return result;
-        }
 
         void read_state_file() {
             const auto new_state = myseq::State::read_from_file(filename->c_str());
@@ -1174,12 +1175,11 @@ START_NAMESPACE_DISTRHO
             }
         }
 
-        void read_stats() {
-            stats = ((MySeqPlugin *) (this->getPluginInstancePointer()))->stats;
+        [[nodiscard]] MySeqPlugin *get_plugin() const {
+            return (MySeqPlugin *) (this->getPluginInstancePointer());
         }
 
         void onImGuiDisplay() override {
-            read_stats();
 
             bool dirty = false;
             int window_flags =

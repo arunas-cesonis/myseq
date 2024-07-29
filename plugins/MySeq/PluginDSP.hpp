@@ -32,8 +32,6 @@ START_NAMESPACE_DISTRHO
         TimePosition last_time_position;
         int iteration = 0;
 
-        myseq::Stats stats;
-
         MySeqPlugin()
                 : Plugin(0, 0, 2) {
             myseq::Test::test_player_run();
@@ -163,9 +161,9 @@ START_NAMESPACE_DISTRHO
 
             run_player1(midiEvents, midiEventCount, tc, tp);
 
-            stats.transport = myseq::transport_from_time_position(t);
-            stats.active_patterns.clear();
-            player.push_active_pattern_stats(stats, state, tp);
+            // stats.transport = myseq::transport_from_time_position(t);
+            // stats.active_patterns.clear();
+            //player.push_active_pattern_stats(stats, state, tp);
 
             last_time_position = t;
             iteration++;

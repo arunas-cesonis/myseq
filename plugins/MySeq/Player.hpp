@@ -70,8 +70,13 @@ namespace myseq {
         bool finished;
         Note note;
         uint8_t velocity;
-        double last_elapsed;
-        double last_duration;
+
+        struct Stats {
+            double time{};
+            double duration{};
+        };
+
+        Stats stats;
     };
 
 
@@ -91,7 +96,7 @@ namespace myseq {
 
         void play_selected_pattern(const myseq::State &state) {
             auto &p = state.get_selected_pattern();
-            const ActivePattern ap = {p.get_id(), 0.0, 0.0, false, Note(p.get_first_note(), 0), 127, 0.0, 0.0};
+            const ActivePattern ap = {p.get_id(), 0.0, 0.0, false, Note(p.get_first_note(), 0), 127, {}};
             selected_active_pattern = {ap};
         }
 
@@ -113,7 +118,7 @@ namespace myseq {
                     continue;
                 }
                 const auto new_start_time = start_time - pattern_start_time_offset(p, note, tp);
-                active_patterns.push_back({p.get_id(), new_start_time, 0.0, false, note, velocity});
+                active_patterns.push_back({p.get_id(), new_start_time, 0.0, false, note, velocity, {}});
             }
         }
 
@@ -145,6 +150,20 @@ namespace myseq {
             return tp.step_duration * static_cast<double>(p.width);
         }
 
+
+        [[nodiscard]] std::vector<ActivePattern::Stats> get_active_pattern_stats(int pattern_id) const {
+            std::vector<ActivePattern::Stats> result;
+            if (selected_active_pattern.has_value() && selected_active_pattern->pattern_id == pattern_id) {
+                result.push_back(selected_active_pattern->stats);
+            }
+            for (auto &ap: active_patterns) {
+                if (ap.pattern_id == pattern_id) {
+                    result.push_back(ap.stats);
+                }
+            }
+            return result;
+        }
+
         void push_active_pattern_stats(myseq::Stats &stats, const myseq::State &state, const TimeParams &tp) {
             for (const auto &ap: active_patterns) {
                 const auto &p = state.get_pattern(ap.pattern_id);
@@ -169,7 +188,7 @@ namespace myseq {
 
         template<typename F>
         bool
-        run_active_pattern(F note_event, const ActivePattern &ap, const myseq::State &state, const TimeParams &tp) {
+        run_active_pattern(F note_event, ActivePattern &ap, const myseq::State &state, const TimeParams &tp) {
             const auto &p = state.get_pattern(ap.pattern_id);
             double window_start = tp.time;
             double window_end = ap.finished ? std::min(window_start + tp.window, ap.end_time) :
@@ -182,6 +201,8 @@ namespace myseq {
 
             double pattern_elapsed = window_start - ap.start_time;
             double pattern_duration = step_duration * static_cast<double>(p.width);
+            ap.stats.time = std::fmod(pattern_elapsed, pattern_duration);
+            ap.stats.duration = pattern_duration;
             double pattern_time = std::fmod(pattern_elapsed, pattern_duration);
             auto next_column = static_cast<int>(std::ceil(
                     std::fmod(pattern_elapsed, pattern_duration) / step_duration));
@@ -240,7 +261,7 @@ namespace myseq {
         void run(F note_event, const myseq::State &state, const TimeParams &tp) {
             if (tp.playing) {
                 for (auto it = active_patterns.begin(); it != active_patterns.end();) {
-                    const auto &ap = *it;
+                    auto &ap = *it;
                     if (!run_active_pattern(note_event, ap, state, tp)) {
                         d_debug("REMOVING ACTIVE PATTERN %d", ap.pattern_id);
                         it = active_patterns.erase(it);
