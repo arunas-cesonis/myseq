@@ -144,7 +144,7 @@
 
    When this macro is defined, the companion DISTRHO_UI_DEFAULT_HEIGHT macro must be defined as well.
  */
-#define DISTRHO_UI_DEFAULT_WIDTH 1920
+#define DISTRHO_UI_DEFAULT_WIDTH 1280
 
 /**
    Default UI height to use when creating initial and temporary windows.@n

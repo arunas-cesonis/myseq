@@ -98,10 +98,15 @@ START_NAMESPACE_DISTRHO
         ImVec2 offset;
         static constexpr int visible_rows = 16;
         static constexpr int visible_columns = 32;
-        const float default_cell_width = 32.0f;
-        const float default_cell_height = 32.0f;
-        float cell_width = default_cell_width;
-        float cell_height = default_cell_height;
+        static constexpr float cell_width = 22.0f;
+        static constexpr float cell_height = 22.0f;
+        static constexpr float cell_padding = 3.0f;
+
+            static constexpr int window_flags = 0;
+                    // ImGuiWindowFlags_NoMove |
+                    // ImGuiWindowFlags_NoCollapse |
+                    // ImGuiWindowFlags_NoScrollWithMouse |
+                    // ImGuiWindowFlags_NoResize;
         std::vector<myseq::Cell> clipboard;
         int last_selected_pattern_id = -1;
 
@@ -798,13 +803,8 @@ START_NAMESPACE_DISTRHO
         void show_grid(bool &dirty) {
 
             const auto focused = ImGui::IsWindowFocused();
-            auto &frame_padding = ImGui::GetStyle().FramePadding;
             float grid_width = ImGui::GetContentRegionAvail().x;
-//            auto cell_width =
-//                    grid_width / default_cell_width >= ((float) visible_columns) ? default_cell_width : grid_width /
-//                                                                                                        (float) visible_columns;
-            // auto cell_size = ImVec2(cell_width, default_cell_height);
-            auto cell_size = ImVec2(cell_width, cell_height);
+            auto cell_size = get_cell_size();
             float fh = ImGui::GetFrameHeight();
             auto grid_height = ImGui::GetContentRegionAvail().y;
             const auto grid_size = ImVec2(grid_width, grid_height) - ImGui::GetStyle().FramePadding * 2.0;
@@ -815,8 +815,7 @@ START_NAMESPACE_DISTRHO
             grid_viewport_limit_panning(cell_size, grid_size, p);
 
             const auto &aps = get_pattern_stats(p.get_id());
-            float cell_padding = 4.0;
-            ImVec2 cell_padding_xy = ImVec2(cell_padding, cell_padding);
+            ImVec2 cell_padding_xy = get_cell_padding();
             const auto active_cell = ImColor(0x7a, 0xaa, 0xef);
             const auto inactive_cell = ImColor(0x25, 0x25, 0x25);
             auto grid_cpos = ImGui::GetCursorScreenPos() - ImVec2(ImGui::GetScrollX(), ImGui::GetScrollY());
@@ -978,7 +977,9 @@ START_NAMESPACE_DISTRHO
 
             draw_list->PopClipRect();
             ImGui::InvisibleButton("##grid_button", ImVec2(grid_width, grid_height));
-            //
+            if (ImGui::IsItemHovered()) {
+                offset.y += ImGui::GetIO().MouseWheel;
+            }
             if (cursor_before != p.cursor) grid_viewport_pan_to_cursor(cell_size, grid_size, p);
             grid_interaction(dirty, p, grid_cpos, grid_size, cell_size, mcell);
         }
@@ -1179,16 +1180,19 @@ START_NAMESPACE_DISTRHO
             return (MySeqPlugin *) (this->getPluginInstancePointer());
         }
 
+        ImVec2 get_cell_size() {
+            return ImVec2(cell_width, cell_height) * getScaleFactor();
+        }
+        
+        ImVec2 get_cell_padding() {
+            return ImVec2(cell_padding, cell_padding) * getScaleFactor();
+        }
+
         void onImGuiDisplay() override {
 
             bool dirty = false;
-            int window_flags =
-                    ImGuiWindowFlags_NoMove |
-                    ImGuiWindowFlags_NoCollapse |
-                    ImGuiWindowFlags_NoScrollWithMouse |
-                    ImGuiWindowFlags_NoResize;
             ImGui::SetNextWindowSize(
-                    ImVec2((float) visible_columns * default_cell_width + 4.0f * ImGui::GetStyle().ItemSpacing.x, 640));
+                    ImVec2((float) visible_columns * get_cell_size().x + 4.0f * ImGui::GetStyle().ItemSpacing.x, 640), ImGuiCond_FirstUseEver);
             general_keyboard_interaction(dirty);
             bool have_patterns = state.num_patterns() > 0;
             if (have_patterns) {
@@ -1220,6 +1224,15 @@ START_NAMESPACE_DISTRHO
             //ImGui::GetCurrentContext()->DebugLogFlags |= ImGuiDebugLogFlags_EventFocus;
             // ImGui::ShowDebugLogWindow();
             ImGui::SetNextWindowPos(ImVec2(right_of_current_window(), bottom_of_current_window()));
+            show_debug_window();
+
+
+            if (dirty) {
+                publish();
+            }
+        }
+
+        void show_debug_window() {
             if (ImGui::Begin("my_debug_window", nullptr, window_flags)) {
                 const auto tp = ((MySeqPlugin *) (this->getPluginInstancePointer()))->last_time_position;
                 const auto sample_rate = ((MySeqPlugin *) (this->getPluginInstancePointer()))->getSampleRate();
@@ -1235,14 +1248,9 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("tp.bbt.beatType: %f", tp.bbt.beatType);
                 ImGui::Text("tp.bbt.ticksPerBeat: %f", tp.bbt.ticksPerBeat);
                 ImGui::Text("tp.bbt.beatsPerMinute: %f", tp.bbt.beatsPerMinute);
-
+                ImGui::Text("grid_info: %s", grid_info.c_str());
             }
             ImGui::End();
-
-
-            if (dirty) {
-                publish();
-            }
         }
 
         void idleCallback() override {
