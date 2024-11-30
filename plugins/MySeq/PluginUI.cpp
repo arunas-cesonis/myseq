@@ -143,7 +143,6 @@ START_NAMESPACE_DISTRHO
                 state = myseq::State();
             }
 
-
             myseq::test_serialize();
             offset = ImVec2(0.0f, 500000.0f);
             if (d_isEqual(scaleFactor, 1.0)) {
@@ -1221,11 +1220,8 @@ START_NAMESPACE_DISTRHO
                 ImGui::End();
             }
 
-            //ImGui::GetCurrentContext()->DebugLogFlags |= ImGuiDebugLogFlags_EventFocus;
-            // ImGui::ShowDebugLogWindow();
             ImGui::SetNextWindowPos(ImVec2(right_of_current_window(), bottom_of_current_window()));
             show_debug_window();
-
 
             if (dirty) {
                 publish();
@@ -1248,7 +1244,6 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("tp.bbt.beatType: %f", tp.bbt.beatType);
                 ImGui::Text("tp.bbt.ticksPerBeat: %f", tp.bbt.ticksPerBeat);
                 ImGui::Text("tp.bbt.beatsPerMinute: %f", tp.bbt.beatsPerMinute);
-                ImGui::Text("grid_info: %s", grid_info.c_str());
             }
             ImGui::End();
         }
