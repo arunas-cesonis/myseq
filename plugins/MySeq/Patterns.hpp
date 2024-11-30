@@ -513,6 +513,7 @@ namespace myseq {
         std::vector<Pattern> patterns;
         bool play_selected = false;
         bool play_note_triggered = false;
+        std::string settings;
 
         State() = default;
 

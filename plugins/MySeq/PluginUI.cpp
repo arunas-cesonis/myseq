@@ -133,6 +133,7 @@ START_NAMESPACE_DISTRHO
 
         MySeqUI()
                 : UI(DISTRHO_UI_DEFAULT_WIDTH, DISTRHO_UI_DEFAULT_HEIGHT) {
+            d_debug("MySeqUI::MySeqUI BEGIN");
             const double scaleFactor = getScaleFactor();
 
             const char *myseq_load_json_file = getenv("MYSEQ_LOAD_JSON_FILE");
@@ -155,18 +156,20 @@ START_NAMESPACE_DISTRHO
             }
 
             gen_array_tests();
+            d_debug("MySeqUI::MySeqUI END");
         }
 
         int publish_count = 0;
         int publish_last_bytes = 0;
 
         void publish() {
+            state.settings = ImGui::SaveIniSettingsToMemory(nullptr);
             auto s = state.to_json_string();
             publish_last_bytes = (int) s.length();
             d_debug("PluginUI: setState key=pattern value=%s", s.c_str());
             setState("pattern", s.c_str());
             if (autosave) {
-                state.write_to_file(filename->c_str());
+                write_state_file();
             }
 // #ifdef DEBUG
             {
@@ -1004,6 +1007,7 @@ START_NAMESPACE_DISTRHO
             const auto new_state = myseq::State::read_from_file(filename->c_str());
             if (new_state.has_value()) {
                 state = new_state.value();
+                ImGui::LoadIniSettingsFromMemory(state.settings.c_str(), state.settings.length());
                 publish();
             } else {
                 d_debug("could not read %s", filename->c_str());
@@ -1011,10 +1015,7 @@ START_NAMESPACE_DISTRHO
         }
 
         void write_state_file() {
-            const auto s = state.to_json_string();
-            const auto cs = s.c_str();
-            d_debug("writing %lu bytes to %s", s.size(), filename->c_str());
-            write_file(filename->c_str(), cs, s.size());
+            state.write_to_file(filename->c_str());
         }
 
         void uiFileBrowserSelected(const char *new_filename) override {
@@ -1256,6 +1257,7 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginUI: stateChanged key=%s", key);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
+                ImGui::LoadIniSettingsFromMemory(state.settings.c_str(), state.settings.length());
             } else if (std::strcmp(key, "filename") == 0) {
                 filename = value;
             }
