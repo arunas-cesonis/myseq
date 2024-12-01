@@ -1,4 +1,5 @@
-- [x] Fix drag-replacing tied notes with tied notes (the resulting state does not include dragged note being placed at ending position and also having correct length)
+- [ ] Pattern versioning: something easier to manage than duplicating
+- [ ] Fix drag-replacing tied notes with tied notes (the resulting state does not include dragged note being placed at ending position and also having correct length)
 - [x] Fix playback visual feedback
 - [x] Crash: when clicking on extended part of tied note
 - [x] Save filename to state so that it is persistet across GUI sessions
