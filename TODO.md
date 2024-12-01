@@ -1,5 +1,8 @@
-- [ ] Pattern versioning: something easier to manage than duplicating
-- [ ] Fix drag-replacing tied notes with tied notes (the resulting state does not include dragged note being placed at ending position and also having correct length)
+- [ ] Pattern versioning: something easier to manage than duplicatin
+- [ ] Fix MovingCells: 1. Replacing tied notes with tied notes produces undesired cells
+- [ ] Fix MovingCells: 2. Moving tied note further than pattern_width-cell_width fails assertion
+- [ ] Fix MovingCells: 3. Wrap-around does not work same way as it does for copy-paste
+- [ ] Fix copying: do not constrain destination vertically; or maybe do it only when modifier is held
 - [x] Fix playback visual feedback
 - [x] Crash: when clicking on extended part of tied note
 - [x] Save filename to state so that it is persistet across GUI sessions
