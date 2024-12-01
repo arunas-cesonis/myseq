@@ -105,8 +105,7 @@ START_NAMESPACE_DISTRHO
         static constexpr float cell_width = 22.0f;
         static constexpr float cell_height = 22.0f;
         static constexpr float cell_padding = 3.0f;
-
-            static constexpr int window_flags = 0;
+        static constexpr int window_flags = 0;
                     // ImGuiWindowFlags_NoMove |
                     // ImGuiWindowFlags_NoCollapse |
                     // ImGuiWindowFlags_NoScrollWithMouse |
@@ -120,7 +119,7 @@ START_NAMESPACE_DISTRHO
         std::optional<std::string> filename;
 
         myseq::State state;
-        std::stack<UndoItem> undo_stack{};
+        std::vector<UndoItem> undo_stack{};
 
         enum class Interaction {
             None,
@@ -220,14 +219,14 @@ START_NAMESPACE_DISTRHO
         void parameterChanged(uint32_t, float) override {}
 
         void push_undo(const char *descr) {
-            undo_stack.push({descr, state});
+            undo_stack.push_back({descr, state});
         }
 
 
         void pop_undo() {
             if (undo_stack.size() > 1) {
-                undo_stack.pop();
-                state = undo_stack.top().state;
+                undo_stack.pop_back();
+                state = undo_stack.back().state;
             }
         }
 
@@ -1260,9 +1259,12 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("tp.bbt.beatType: %f", tp.bbt.beatType);
                 ImGui::Text("tp.bbt.ticksPerBeat: %f", tp.bbt.ticksPerBeat);
                 ImGui::Text("tp.bbt.beatsPerMinute: %f", tp.bbt.beatsPerMinute);
-                // if (ImGui::BeginListBox("undo", ImVec2(-FLT_MIN, 100.0))) {
-                // }
-                // ImGui::EndListBox();
+                if (ImGui::BeginListBox("undo", ImVec2(-FLT_MIN, 100.0))) {
+                    for (const auto &item : undo_stack) {
+                        ImGui::Selectable(item.descr.c_str(), false);
+                    }
+                    ImGui::EndListBox();
+                }
             }
             ImGui::End();
         }
