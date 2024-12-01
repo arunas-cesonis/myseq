@@ -14,8 +14,7 @@ START_NAMESPACE_DISTRHO
 // #define SET_DIRTY() { d_debug("dirty: %d", __LINE__);  dirty = true; }
 #define SET_DIRTY_PUSH_UNDO(descr) {   dirty = true; PUSH_UNDO(descr); }
 #define SET_DIRTY() {   dirty = true; }
-#define PUSH_UNDO(descr) {   d_debug("push_undo: %s", descr); push_undo(); }
-
+#define PUSH_UNDO(descr) {   d_debug("push_undo: %s", descr); push_undo(descr); }
 // --------------------------------------------------------------------------------------------------------------------
 
 
@@ -30,6 +29,11 @@ START_NAMESPACE_DISTRHO
         ImVec2 p_max;
         V2i cell_min;
         V2i cell_max;
+    };
+
+    struct UndoItem {
+        std::string descr; 
+        myseq::State state;
     };
 
     template<typename T>
@@ -116,7 +120,7 @@ START_NAMESPACE_DISTRHO
         std::optional<std::string> filename;
 
         myseq::State state;
-        std::stack<myseq::State> undo_stack{};
+        std::stack<UndoItem> undo_stack{};
 
         enum class Interaction {
             None,
@@ -140,8 +144,10 @@ START_NAMESPACE_DISTRHO
             if (nullptr != myseq_load_json_file) {
                 filename = {std::string(myseq_load_json_file)};
                 read_state_file();
+                settings_state_to_imgui();
             } else {
                 state = myseq::State();
+                settings_imgui_to_state();
             }
 
             myseq::test_serialize();
@@ -163,12 +169,12 @@ START_NAMESPACE_DISTRHO
         int publish_last_bytes = 0;
 
         void publish() {
-            state.settings = ImGui::SaveIniSettingsToMemory(nullptr);
             auto s = state.to_json_string();
             publish_last_bytes = (int) s.length();
             d_debug("PluginUI: setState key=pattern value=%s", s.c_str());
             setState("pattern", s.c_str());
             if (autosave) {
+                settings_imgui_to_state();
                 write_state_file();
             }
 // #ifdef DEBUG
@@ -213,15 +219,15 @@ START_NAMESPACE_DISTRHO
          */
         void parameterChanged(uint32_t, float) override {}
 
-        void push_undo() {
-            undo_stack.push(state);
+        void push_undo(const char *descr) {
+            undo_stack.push({descr, state});
         }
 
 
         void pop_undo() {
             if (undo_stack.size() > 1) {
                 undo_stack.pop();
-                state = undo_stack.top();
+                state = undo_stack.top().state;
             }
         }
 
@@ -1002,13 +1008,18 @@ START_NAMESPACE_DISTRHO
             return {rect.first, rect.second, cell_min, cell_max};
         }
 
+        void settings_state_to_imgui() {
+            ImGui::LoadIniSettingsFromMemory(state.settings.c_str(), state.settings.length());
+        }
+
+        void settings_imgui_to_state() {
+            state.settings = ImGui::SaveIniSettingsToMemory(nullptr);
+        }
 
         void read_state_file() {
             const auto new_state = myseq::State::read_from_file(filename->c_str());
             if (new_state.has_value()) {
                 state = new_state.value();
-                ImGui::LoadIniSettingsFromMemory(state.settings.c_str(), state.settings.length());
-                publish();
             } else {
                 d_debug("could not read %s", filename->c_str());
             }
@@ -1023,9 +1034,12 @@ START_NAMESPACE_DISTRHO
                 return;
             filename = {std::string(new_filename)};
             if (file_browser_saving) {
+                settings_imgui_to_state();
                 write_state_file();
             } else {
                 read_state_file();
+                settings_state_to_imgui();
+                publish();
             }
             setState("filename", filename.value().c_str());
         }
@@ -1225,6 +1239,7 @@ START_NAMESPACE_DISTRHO
             show_debug_window();
 
             if (dirty) {
+                settings_imgui_to_state();
                 publish();
             }
         }
@@ -1245,6 +1260,9 @@ START_NAMESPACE_DISTRHO
                 ImGui::Text("tp.bbt.beatType: %f", tp.bbt.beatType);
                 ImGui::Text("tp.bbt.ticksPerBeat: %f", tp.bbt.ticksPerBeat);
                 ImGui::Text("tp.bbt.beatsPerMinute: %f", tp.bbt.beatsPerMinute);
+                // if (ImGui::BeginListBox("undo", ImVec2(-FLT_MIN, 100.0))) {
+                // }
+                // ImGui::EndListBox();
             }
             ImGui::End();
         }
@@ -1257,7 +1275,7 @@ START_NAMESPACE_DISTRHO
             d_debug("PluginUI: stateChanged key=%s", key);
             if (std::strcmp(key, "pattern") == 0) {
                 state = myseq::State::from_json_string(value);
-                ImGui::LoadIniSettingsFromMemory(state.settings.c_str(), state.settings.length());
+                settings_state_to_imgui();
             } else if (std::strcmp(key, "filename") == 0) {
                 filename = value;
             }
