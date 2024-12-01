@@ -1,4 +1,5 @@
 - [ ] Pattern versioning: something easier to manage than duplicatin
+- [ ] Serialize undo. Surge does!
 - [ ] Fix MovingCells: 1. Replacing tied notes with tied notes produces undesired cells
 - [ ] Fix MovingCells: 2. Moving tied note further than pattern_width-cell_width fails assertion
 - [ ] Fix MovingCells: 3. Wrap-around does not work same way as it does for copy-paste
