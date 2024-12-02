@@ -1,6 +1,6 @@
+- [ ] Tied notes: rather than attaching "virtual" length to a cell, individual cells along the length. Or find other way to implement it that provides less congnitive load when adding new features.
 - [ ] Pattern versioning: something easier to manage than duplicatin
 - [ ] Serialize undo. Surge does!
-- [ ] Tied notes: rather than attaching "virtual" length to a cell, individual cells along the length. Or find other way to implement it that provides less congnitive load when adding new features.
 - [ ] Fix MovingCells: 1. Replacing tied notes with tied notes produces undesired cells
 - [ ] Fix MovingCells: 2. Moving tied note further than pattern_width-cell_width fails assertion
 - [ ] Fix MovingCells: 3. Wrap-around does not work same way as it does for copy-paste
