@@ -5,6 +5,7 @@
 - [ ] Fix MovingCells: 2. Moving tied note further than pattern_width-cell_width fails assertion
 - [ ] Fix MovingCells: 3. Wrap-around does not work same way as it does for copy-paste
 - [ ] Fix copying: do not constrain destination vertically; or maybe do it only when modifier is held
+- [ ] Different bindings. Right-button seems to be more "intuitive" (to me) to erase (e.g. Piskel). However would that work when using touchpad? May be worth to at least make these code-configured.
 - [x] Fix playback visual feedback
 - [x] Crash: when clicking on extended part of tied note
 - [x] Save filename to state so that it is persistet across GUI sessions
